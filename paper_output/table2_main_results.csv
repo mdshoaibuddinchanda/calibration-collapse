@@ -1,4 +1,4 @@
-Method,Pima (IR=1.9)_ECE_min_mean,Pima (IR=1.9)_ECE_min_std,Phoneme (IR=2.4)_ECE_min_mean,Phoneme (IR=2.4)_ECE_min_std,Credit Card (IR=580)_ECE_min_mean,Credit Card (IR=580)_ECE_min_std
+Method,pima_mean,pima_std,phoneme_mean,phoneme_std,credit_card_mean,credit_card_std
 LR + None,0.4564,0.0354,0.5329,0.0141,0.0521,0.0561
 LR + SMOTE,0.3447,0.0332,0.3482,0.0141,0.0083,0.0115
 LR + ClassWt,0.3465,0.0316,0.3484,0.0137,0.0089,0.0151

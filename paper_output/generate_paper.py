@@ -1,17 +1,17 @@
 
 """
-Paper Output Generator v2
-==========================
-Fixes applied vs v1:
-  - Tables exported as CSV (not PDF tables)
-  - Figures: larger fonts, no overlapping labels, tight layout
-  - Fig4 severity sweep: uses newly generated mild/moderate data
-  - Fig5 confidence zone: uses newly generated zone data
-  - Fig6 synthetic: uses PCA projection for better scatter visibility
-  - All figures: 300 DPI PDF + PNG
+Paper Output Generator — Clean Academic Version
+================================================
+Principles:
+  - No text/boxes overlapping data lines
+  - No inline value annotations (values belong in tables)
+  - No arrows or decorative annotations on plots
+  - Legends always outside the plot area (right side or bottom)
+  - Journal-grade font sizes (11pt base)
+  - Minimal ink, maximum clarity
 
 Run from project root:
-    python paper_output/_gen_v2.py
+    python paper_output/generate_paper.py
 """
 from __future__ import annotations
 import json, sys, warnings
@@ -21,6 +21,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 
@@ -35,39 +36,48 @@ METRICS_CAL   = ROOT / "outputs" / "metrics" / "calibration"
 ABLATION_DIR  = ROOT / "reports" / "ablations"
 SYNTHETIC_DIR = ROOT / "datasets" / "synthetic"
 
-# ── Global style ─────────────────────────────────────────────────────────────
+# ── Journal-grade style ───────────────────────────────────────────────────────
 plt.rcParams.update({
-    "figure.dpi":          300,
-    "savefig.dpi":         300,
-    "font.family":         "DejaVu Sans",
-    "font.size":           14,
-    "axes.titlesize":      16,
-    "axes.labelsize":      14,
-    "xtick.labelsize":     12,
-    "ytick.labelsize":     12,
-    "legend.fontsize":     12,
-    "legend.title_fontsize": 13,
-    "axes.spines.top":     False,
-    "axes.spines.right":   False,
-    "axes.linewidth":      1.3,
-    "grid.alpha":          0.35,
-    "lines.linewidth":     2.4,
-    "lines.markersize":    9,
+    "figure.dpi":            300,
+    "savefig.dpi":           300,
+    "font.family":           "DejaVu Sans",
+    "font.size":             10,
+    "axes.titlesize":        11,
+    "axes.labelsize":        10,
+    "xtick.labelsize":       9,
+    "ytick.labelsize":       9,
+    "legend.fontsize":       9,
+    "legend.title_fontsize": 9,
+    "legend.framealpha":     0.9,
+    "legend.edgecolor":      "#BBBBBB",
+    "legend.borderpad":      0.5,
+    "axes.spines.top":       False,
+    "axes.spines.right":     False,
+    "axes.linewidth":        0.8,
+    "grid.alpha":            0.20,
+    "grid.linewidth":        0.5,
+    "lines.linewidth":       1.6,
+    "lines.markersize":      5,
+    "errorbar.capsize":      2,
+    "figure.constrained_layout.use": False,
 })
 
-# ── Palettes ─────────────────────────────────────────────────────────────────
-C = {
-    "lr_none":   "#4878CF",
-    "lr_smote":  "#D65F5F",
-    "lr_cw":     "#6ACC65",
-    "lr_ts":     "#B47CC7",
-    "lr_pcdm":   "#C4AD66",
-    "rf_none":   "#77BEDB",
-    "rf_smote":  "#F0A58F",
-    "rf_pcdm":   "#8EBA42",
+# ── Colour palette (muted, print-safe) ───────────────────────────────────────
+COLORS = {
+    "lr_none":   "#3A6EA5",
+    "lr_smote":  "#C0392B",
+    "lr_cw":     "#27AE60",
+    "lr_ts":     "#8E44AD",
+    "lr_pcdm":   "#D4AC0D",
+    "rf_none":   "#85C1E9",
+    "rf_smote":  "#F1948A",
+    "rf_pcdm":   "#82E0AA",
 }
-MK = {"lr_none":"o","lr_smote":"s","lr_cw":"^","lr_ts":"D","lr_pcdm":"*",
-      "rf_none":"o","rf_smote":"s","rf_pcdm":"*"}
+MARKERS = {
+    "lr_none":"o", "lr_smote":"s", "lr_cw":"^",
+    "lr_ts":"D",   "lr_pcdm":"*",
+    "rf_none":"o", "rf_smote":"s", "rf_pcdm":"*",
+}
 
 DS_LABEL = {
     "pima":                     "Pima (IR=1.9)",
@@ -88,9 +98,9 @@ M_LABEL = {
     "random_forest+smote+per_class_adaptive":        "RF + SMOTE + PCDM",
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Data helpers ──────────────────────────────────────────────────────────────
 
-def load_table() -> dict:
+def load_table():
     p = MULTISEED_DIR / "controlled_validation_paper_table.json"
     return json.load(open(p)) if p.exists() else {}
 
@@ -107,13 +117,11 @@ def save(fig, stem):
     print(f"  Saved: {stem}.pdf / .png")
     plt.close(fig)
 
-def load_ece(dataset_name, method_suffix="logistic_regression_none_none"):
-    pat = f"*{dataset_name}*{method_suffix}*calibration_metrics.json"
-    files = sorted(METRICS_CAL.glob(pat))
+def load_ece(dataset_name, suffix="logistic_regression_none_none"):
+    files = sorted(METRICS_CAL.glob(f"*{dataset_name}*{suffix}*calibration_metrics.json"))
     if not files:
         return float("nan")
-    d = json.load(open(files[0]))
-    return float(d.get("ece_minority", float("nan")))
+    return float(json.load(open(files[0])).get("ece_minority", float("nan")))
 
 def load_multiseed(ds, method_key):
     safe  = method_key.replace("+", "_")
@@ -123,24 +131,11 @@ def load_multiseed(ds, method_key):
 
 
 # =============================================================================
-# TABLES — exported as CSV
+# TABLES — CSV only
 # =============================================================================
 
 def make_tables(table):
     print("\n── Tables ──────────────────────────────────────────────────────")
-
-    # Table 1 — Dataset Summary
-    df1 = pd.DataFrame([
-        ["Pima",               "Real",      768,    8,  1.9,  268,  "Mild imbalance baseline"],
-        ["Phoneme",            "Real",      5404,   5,  2.4,  1586, "Moderate imbalance"],
-        ["Credit Card",        "Real/Proxy",28480, 29, 580,   49,   "Extreme imbalance"],
-        ["Extreme Imb. (syn.)","Synthetic", 5000,  10, 101,   49,   "IR stress (controlled)"],
-        ["Conf. Collapse (syn.)","Synthetic",5000, 12,  20,  238,   "Confidence instability"],
-    ], columns=["Dataset","Type","Samples","Features","IR","Minority_n","Role"])
-    df1.to_csv(OUT / "table1_dataset_summary.csv", index=False)
-    print("  Saved: table1_dataset_summary.csv")
-
-    # Table 2 — Main Results (ECE_minority)
     methods = [
         "logistic_regression+none+none",
         "logistic_regression+smote+none",
@@ -152,129 +147,145 @@ def make_tables(table):
         "random_forest+smote+per_class_adaptive",
     ]
     datasets_main = ["pima", "phoneme", "credit_card"]
-    rows2 = []
+
+    # Table 1
+    pd.DataFrame([
+        ["Pima",               "Real",       768,   8,   1.9,  268,  "Mild imbalance baseline"],
+        ["Phoneme",            "Real",      5404,   5,   2.4, 1586,  "Moderate imbalance"],
+        ["Credit Card",        "Real/Proxy",28480, 29, 580.0,   49,  "Extreme imbalance"],
+        ["Extreme Imb. (syn.)","Synthetic", 5000,  10, 101.0,   49,  "IR stress (controlled)"],
+        ["Conf. Collapse (syn.)","Synthetic",5000, 12,  20.0,  238,  "Confidence instability"],
+    ], columns=["Dataset","Type","Samples","Features","IR","Minority_n","Role"]
+    ).to_csv(OUT / "table1_dataset_summary.csv", index=False)
+    print("  Saved: table1_dataset_summary.csv")
+
+    # Table 2 — ECE_minority
+    rows = []
     for m in methods:
         row = {"Method": M_LABEL.get(m, m)}
         for ds in datasets_main:
             mn, sd = gm(table, m, ds, "ece_minority")
-            row[f"{DS_LABEL[ds]}_ECE_min_mean"] = round(mn, 4) if not np.isnan(mn) else ""
-            row[f"{DS_LABEL[ds]}_ECE_min_std"]  = round(sd, 4) if not np.isnan(sd) else ""
-        rows2.append(row)
-    pd.DataFrame(rows2).to_csv(OUT / "table2_main_results.csv", index=False)
+            row[f"{ds}_mean"] = round(mn, 4) if not np.isnan(mn) else ""
+            row[f"{ds}_std"]  = round(sd, 4) if not np.isnan(sd) else ""
+        rows.append(row)
+    pd.DataFrame(rows).to_csv(OUT / "table2_main_results.csv", index=False)
     print("  Saved: table2_main_results.csv")
 
-    # Table 3 — Calibration-Recall Tradeoff
-    rows3 = []
+    # Table 3 — Tradeoff
+    rows = []
     for m in methods[:5]:
         row = {"Method": M_LABEL.get(m, m)}
         for ds in ["pima", "phoneme"]:
             rm, rs = gm(table, m, ds, "recall_minority")
             em, es = gm(table, m, ds, "ece_minority")
-            row[f"{ds}_recall_mean"] = round(rm, 4) if not np.isnan(rm) else ""
-            row[f"{ds}_recall_std"]  = round(rs, 4) if not np.isnan(rs) else ""
-            row[f"{ds}_ECE_min_mean"]= round(em, 4) if not np.isnan(em) else ""
-            row[f"{ds}_ECE_min_std"] = round(es, 4) if not np.isnan(es) else ""
-        rows3.append(row)
-    pd.DataFrame(rows3).to_csv(OUT / "table3_tradeoff.csv", index=False)
+            row[f"{ds}_recall"] = f"{rm:.3f}±{rs:.3f}" if not np.isnan(rm) else ""
+            row[f"{ds}_ece_min"] = f"{em:.3f}±{es:.3f}" if not np.isnan(em) else ""
+        rows.append(row)
+    pd.DataFrame(rows).to_csv(OUT / "table3_tradeoff.csv", index=False)
     print("  Saved: table3_tradeoff.csv")
 
-    # Table 4 — Multi-Seed Stability
-    rows4 = []
+    # Table 4 — Stability
+    rows = []
     for m in methods:
         for ds in ["pima", "phoneme"]:
             try:
                 d = table[m][ds]["ece_minority"]
-                rows4.append({
-                    "Method":  M_LABEL.get(m, m),
-                    "Dataset": DS_LABEL.get(ds, ds),
-                    "Mean":    round(d["mean"], 4),
-                    "Std":     round(d["std"],  4),
-                    "CV":      round(d["cv"],   4) if d["cv"] == d["cv"] else "",
-                    "CI_lower":round(d["ci_lower"], 4),
-                    "CI_upper":round(d["ci_upper"], 4),
-                    "Stable":  d["is_stable"],
-                    "N_seeds": d["n_seeds"],
+                rows.append({
+                    "Method": M_LABEL.get(m, m), "Dataset": ds,
+                    "Mean": round(d["mean"], 4), "Std": round(d["std"], 4),
+                    "CV": round(d["cv"], 4) if d["cv"] == d["cv"] else "",
+                    "CI_lower": round(d["ci_lower"], 4),
+                    "CI_upper": round(d["ci_upper"], 4),
+                    "Stable": d["is_stable"], "N_seeds": d["n_seeds"],
                 })
             except (KeyError, TypeError):
                 pass
-    pd.DataFrame(rows4).to_csv(OUT / "table4_stability.csv", index=False)
+    pd.DataFrame(rows).to_csv(OUT / "table4_stability.csv", index=False)
     print("  Saved: table4_stability.csv")
 
     # Table 5 — Ablation
-    df5 = pd.read_csv(ABLATION_DIR / "exp001_smote_ratios_ablation_summary.csv") \
-          if (ABLATION_DIR / "exp001_smote_ratios_ablation_summary.csv").exists() \
-          else pd.DataFrame()
-    if not df5.empty:
-        df5.to_csv(OUT / "table5_ablation.csv", index=False)
+    p = ABLATION_DIR / "exp001_smote_ratios_ablation_summary.csv"
+    if p.exists():
+        pd.read_csv(p).to_csv(OUT / "table5_ablation.csv", index=False)
         print("  Saved: table5_ablation.csv")
 
-    # Appendix Table — Skipped configs
-    df_app = pd.DataFrame([
+    # Appendix table
+    pd.DataFrame([
         ["SMOTE ratio=0.5", "pima",    "LR/RF", 0.536, 0.5, "Current ratio >= requested"],
         ["SMOTE ratio=2.0", "pima",    "LR/RF", 0.536, 2.0, "Unstable near IR=1.9"],
         ["SMOTE ratio=2.0", "phoneme", "LR/RF", 0.416, 2.0, "Unstable near IR=2.4"],
-    ], columns=["Config","Dataset","Model","Current_ratio","Requested_ratio","Reason"])
-    df_app.to_csv(OUT / "appendix_table_skipped.csv", index=False)
+    ], columns=["Config","Dataset","Model","Current_ratio","Requested_ratio","Reason"]
+    ).to_csv(OUT / "appendix_table_skipped.csv", index=False)
     print("  Saved: appendix_table_skipped.csv")
 
 
 # =============================================================================
-# FIGURE 1 — Calibration Gap (Global vs Minority ECE)
+# FIGURE 1 — Calibration Gap
 # =============================================================================
 
 def make_fig1(table):
     print("\n[Fig 1] Calibration Gap")
     methods_plot = [
-        ("logistic_regression+none+none",                "LR+None",       "#4878CF"),
-        ("logistic_regression+smote+none",               "LR+SMOTE",      "#D65F5F"),
-        ("logistic_regression+smote+per_class_adaptive", "LR+SMOTE+PCDM", "#C4AD66"),
-        ("random_forest+none+none",                      "RF+None",       "#77BEDB"),
-        ("random_forest+smote+none",                     "RF+SMOTE",      "#F0A58F"),
+        ("logistic_regression+none+none",                "LR+None",       "#3A6EA5"),
+        ("logistic_regression+smote+none",               "LR+SMOTE",      "#C0392B"),
+        ("logistic_regression+smote+per_class_adaptive", "LR+SMOTE+PCDM", "#D4AC0D"),
+        ("random_forest+none+none",                      "RF+None",       "#85C1E9"),
+        ("random_forest+smote+none",                     "RF+SMOTE",      "#F1948A"),
     ]
     datasets_plot = ["pima", "phoneme", "credit_card"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 7))
-    fig.subplots_adjust(wspace=0.35, top=0.85, bottom=0.22)
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+    fig.subplots_adjust(wspace=0.30, top=0.82, bottom=0.28, left=0.07, right=0.97)
 
     for ax, ds in zip(axes, datasets_plot):
-        x     = np.arange(len(methods_plot))
-        w     = 0.36
-        g_m   = [gm(table, m, ds, "ece_global")[0]   for m, _, _ in methods_plot]
-        g_s   = [gm(table, m, ds, "ece_global")[1]   for m, _, _ in methods_plot]
-        mi_m  = [gm(table, m, ds, "ece_minority")[0] for m, _, _ in methods_plot]
-        mi_s  = [gm(table, m, ds, "ece_minority")[1] for m, _, _ in methods_plot]
+        x = np.arange(len(methods_plot))
+        w = 0.34
+        g_m  = [gm(table, m, ds, "ece_global")[0]   for m, _, _ in methods_plot]
+        g_s  = [gm(table, m, ds, "ece_global")[1]   for m, _, _ in methods_plot]
+        mi_m = [gm(table, m, ds, "ece_minority")[0] for m, _, _ in methods_plot]
+        mi_s = [gm(table, m, ds, "ece_minority")[1] for m, _, _ in methods_plot]
 
-        ax.bar(x - w/2, g_m,  w, yerr=g_s,  capsize=5,
-               color="#5B9BD5", alpha=0.85, label="ECE_global",
-               error_kw={"elinewidth":1.8, "ecolor":"#222"})
-        ax.bar(x + w/2, mi_m, w, yerr=mi_s, capsize=5,
-               color="#ED7D31", alpha=0.85, label="ECE_minority",
-               error_kw={"elinewidth":1.8, "ecolor":"#222"})
+        ax.bar(x - w/2, g_m,  w, yerr=g_s,  capsize=2,
+               color="#5B9BD5", alpha=0.75, label="ECE_global",
+               error_kw={"elinewidth": 1.0, "ecolor": "#555"})
+        ax.bar(x + w/2, mi_m, w, yerr=mi_s, capsize=2,
+               color="#E67E22", alpha=0.75, label="ECE_minority",
+               error_kw={"elinewidth": 1.0, "ecolor": "#555"})
 
-        ax.set_title(DS_LABEL[ds], fontsize=15, fontweight="bold", pad=10)
+        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold", pad=6)
         ax.set_xticks(x)
         ax.set_xticklabels([lbl for _, lbl, _ in methods_plot],
-                           rotation=40, ha="right", fontsize=10)
-        ax.set_ylabel("ECE  (↓ better)" if ax is axes[0] else "", fontsize=13)
+                           rotation=35, ha="right", fontsize=8)
+        ax.set_ylabel("ECE  (↓ better)" if ax is axes[0] else "", fontsize=9)
         ax.set_ylim(0, None)
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
-        ax.grid(axis="y", alpha=0.3)
+        ax.grid(axis="y", alpha=0.20)
 
-    axes[0].legend(fontsize=11, loc="upper right")
+    # Single legend below all subplots
+    handles = [
+        plt.Rectangle((0,0),1,1, color="#5B9BD5", alpha=0.75),
+        plt.Rectangle((0,0),1,1, color="#E67E22", alpha=0.75),
+    ]
+    fig.legend(handles, ["ECE_global", "ECE_minority"],
+               loc="lower center", ncol=2, fontsize=9,
+               bbox_to_anchor=(0.5, 0.01), frameon=True)
     fig.suptitle(
-        "Figure 1 — Global ECE vs Minority-Class ECE\n"
-        "Global ECE masks severe minority miscalibration  (error bars = ±std, 5 seeds)",
-        fontsize=15, fontweight="bold",
+        "Figure 1 — Global ECE vs Minority-Class ECE  (error bars = ±std, 5 seeds)",
+        fontsize=11, fontweight="bold",
     )
     save(fig, "fig1_calibration_gap")
 
 
 # =============================================================================
-# FIGURE 2 — Reliability Diagrams with Uncertainty Bands
+# FIGURE 2 — Reliability Diagrams
 # =============================================================================
 
-def _reliability_bands(ax, ds, class_key, methods_info):
-    ax.plot([0,1],[0,1],"k--",lw=1.8,label="Perfect",zorder=10,alpha=0.7)
+def _draw_reliability(ax, ds, class_key, methods_info):
+    """Draw reliability curve with ±std band. No overlapping elements."""
+    # Perfect calibration reference
+    ax.plot([0, 1], [0, 1], color="#999999", lw=1.0, ls="--",
+            label="Perfect calibration", zorder=10)
+
     for m_key, label, color in methods_info:
         report    = load_multiseed(ds, m_key)
         seed_data = report.get("reliability_data_per_seed", [])
@@ -296,46 +307,55 @@ def _reliability_bands(ax, ds, class_key, methods_info):
             cv = [s[b] for s in per_c if s[b] is not None]
             if av:
                 ma.append(float(np.mean(av)))
-                sa.append(float(np.std(av, ddof=1)) if len(av)>1 else 0.0)
-                mc.append(float(np.mean(cv)) if cv else b/n_b)
-        valid = [(c,a,s) for c,a,s in zip(mc,ma,sa) if c is not None and a is not None]
+                sa.append(float(np.std(av, ddof=1)) if len(av) > 1 else 0.0)
+                mc.append(float(np.mean(cv)) if cv else b / n_b)
+        valid = [(c, a, s) for c, a, s in zip(mc, ma, sa)
+                 if c is not None and a is not None]
         if not valid:
             continue
         cv_a, av_a, sv_a = (np.array(v) for v in zip(*valid))
-        ax.plot(cv_a, av_a, "o-", color=color, lw=2.4, ms=7, label=label, zorder=6)
+        ax.plot(cv_a, av_a, "o-", color=color, lw=1.6, ms=4,
+                label=label, zorder=6)
         ax.fill_between(cv_a,
-                        np.clip(av_a-sv_a,0,1),
-                        np.clip(av_a+sv_a,0,1),
-                        alpha=0.15, color=color)
-    # FIX: add padding so the y=1.0 line is not clipped at the top edge
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.04, 1.08)
-    ax.grid(alpha=0.3)
+                        np.clip(av_a - sv_a, 0, 1),
+                        np.clip(av_a + sv_a, 0, 1),
+                        alpha=0.10, color=color, zorder=5)
+
+    # Clean axis limits with padding so nothing clips
+    ax.set_xlim(-0.03, 1.03)
+    ax.set_ylim(-0.05, 1.10)
+    ax.grid(alpha=0.18)
+
 
 def make_fig2():
     print("\n[Fig 2] Reliability Diagrams with Uncertainty Bands")
     methods_info = [
-        ("logistic_regression+none+none",                "LR + None",        "#4878CF"),
-        ("logistic_regression+smote+none",               "LR + SMOTE",       "#D65F5F"),
-        ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#C4AD66"),
+        ("logistic_regression+none+none",                "LR + None",        "#3A6EA5"),
+        ("logistic_regression+smote+none",               "LR + SMOTE",       "#C0392B"),
+        ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D"),
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    fig.subplots_adjust(wspace=0.3, top=0.82, bottom=0.12)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.14,
+                        left=0.08, right=0.72)
 
-    for ax_i, (ax, class_key, title) in enumerate(zip(
-            axes,
-            ["global", "minority"],
-            ["Global Reliability", "Minority-Class Reliability"])):
-        _reliability_bands(ax, "phoneme", class_key, methods_info)
-        ax.set_title(title, fontsize=15, fontweight="bold")
-        ax.set_xlabel("Mean predicted confidence", fontsize=13)
-        ax.set_ylabel("Fraction of positives" if ax_i==0 else "", fontsize=13)
-        ax.legend(fontsize=11, loc="upper left")
+    titles = ["Global Reliability", "Minority-Class Reliability"]
+    keys   = ["global", "minority"]
+    for ax, class_key, title in zip(axes, keys, titles):
+        _draw_reliability(ax, "phoneme", class_key, methods_info)
+        ax.set_title(title, fontsize=10, fontweight="bold")
+        ax.set_xlabel("Mean predicted confidence", fontsize=9)
+        ax.set_ylabel("Fraction of positives", fontsize=9)
+
+    # Single legend to the right of both subplots — never overlaps data
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels,
+               loc="center left", bbox_to_anchor=(0.73, 0.50),
+               fontsize=9, frameon=True, title="Method", title_fontsize=9)
 
     fig.suptitle(
-        "Figure 2 — Reliability Diagrams with Uncertainty Bands  (Phoneme, 5 seeds)\n"
-        "Shaded band = ±1 std across seeds",
-        fontsize=15, fontweight="bold",
+        "Figure 2 — Reliability Diagrams with Uncertainty Bands  "
+        "(Phoneme, 5 seeds, shaded = ±1 std)",
+        fontsize=11, fontweight="bold",
     )
     save(fig, "fig2_reliability_uncertainty")
 
@@ -346,84 +366,66 @@ def make_fig2():
 
 def make_fig3(table):
     print("\n[Fig 3] Recall vs ECE Frontier")
+    # Separate LR and RF into two visual groups via shape
+    # LR = filled markers, RF = open markers
+    # Color = calibration method
     methods_plot = [
-        ("logistic_regression+none+none",                "LR+None",       "#4878CF","o"),
-        ("logistic_regression+smote+none",               "LR+SMOTE",      "#D65F5F","s"),
-        ("logistic_regression+class_weight+none",        "LR+ClassWt",    "#6ACC65","^"),
-        ("logistic_regression+smote+temperature_scaling","LR+SMOTE+TS",   "#B47CC7","D"),
-        ("logistic_regression+smote+per_class_adaptive", "LR+SMOTE+PCDM", "#C4AD66","*"),
-        ("random_forest+none+none",                      "RF+None",       "#77BEDB","o"),
-        ("random_forest+smote+none",                     "RF+SMOTE",      "#F0A58F","s"),
-        ("random_forest+smote+per_class_adaptive",       "RF+SMOTE+PCDM", "#8EBA42","*"),
+        ("logistic_regression+none+none",                "LR + None",       "#3A6EA5", "o", True),
+        ("logistic_regression+smote+none",               "LR + SMOTE",      "#C0392B", "s", True),
+        ("logistic_regression+class_weight+none",        "LR + ClassWt",    "#27AE60", "^", True),
+        ("logistic_regression+smote+temperature_scaling","LR + SMOTE + TS", "#8E44AD", "D", True),
+        ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE+PCDM", "#D4AC0D", "*", True),
+        ("random_forest+none+none",                      "RF + None",       "#3A6EA5", "o", False),
+        ("random_forest+smote+none",                     "RF + SMOTE",      "#C0392B", "s", False),
+        ("random_forest+smote+per_class_adaptive",       "RF + SMOTE+PCDM", "#D4AC0D", "*", False),
     ]
-    datasets_plot = ["pima", "phoneme", "credit_card"]
-
-    fig, axes = plt.subplots(1, 3, figsize=(20, 8))
-    fig.subplots_adjust(wspace=0.38, top=0.80, bottom=0.22)
-
-    # Small jitter offsets so overlapping points separate visually
+    # Jitter to separate overlapping points
     jitter = {
         "logistic_regression+none+none":                 ( 0.000,  0.000),
-        "logistic_regression+smote+none":                ( 0.008,  0.000),
-        "logistic_regression+class_weight+none":         (-0.008,  0.000),
-        "logistic_regression+smote+temperature_scaling": ( 0.000,  0.008),
-        "logistic_regression+smote+per_class_adaptive":  ( 0.000, -0.008),
-        "random_forest+none+none":                       ( 0.012,  0.000),
-        "random_forest+smote+none":                      (-0.012,  0.000),
-        "random_forest+smote+per_class_adaptive":        ( 0.000,  0.012),
+        "logistic_regression+smote+none":                ( 0.010,  0.000),
+        "logistic_regression+class_weight+none":         (-0.010,  0.000),
+        "logistic_regression+smote+temperature_scaling": ( 0.000,  0.010),
+        "logistic_regression+smote+per_class_adaptive":  ( 0.000, -0.010),
+        "random_forest+none+none":                       ( 0.015,  0.000),
+        "random_forest+smote+none":                      (-0.015,  0.000),
+        "random_forest+smote+per_class_adaptive":        ( 0.000,  0.015),
     }
-    # Short labels for point annotations (avoid long text on plot)
-    short_lbl = {
-        "logistic_regression+none+none":                 "LR·∅",
-        "logistic_regression+smote+none":                "LR·S",
-        "logistic_regression+class_weight+none":         "LR·CW",
-        "logistic_regression+smote+temperature_scaling": "LR·S+TS",
-        "logistic_regression+smote+per_class_adaptive":  "LR·S+PCDM",
-        "random_forest+none+none":                       "RF·∅",
-        "random_forest+smote+none":                      "RF·S",
-        "random_forest+smote+per_class_adaptive":        "RF·S+PCDM",
-    }
+    datasets_plot = ["pima", "phoneme", "credit_card"]
+
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+    fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.22,
+                        left=0.07, right=0.72)
 
     for ax, ds in zip(axes, datasets_plot):
-        for m, lbl, color, mk in methods_plot:
+        for m, lbl, color, mk, filled in methods_plot:
             rm, rs = gm(table, m, ds, "recall_minority")
             em, es = gm(table, m, ds, "ece_minority")
             if np.isnan(rm) or np.isnan(em):
                 continue
             jx, jy = jitter.get(m, (0, 0))
+            mfc = color if filled else "white"
             ax.errorbar(rm + jx, em + jy, xerr=rs, yerr=es,
-                        fmt=mk, color=color, ms=11,
-                        capsize=4, elinewidth=1.5,
-                        label=lbl, zorder=5, alpha=0.9)
-            # Small label next to each point
-            ax.annotate(short_lbl.get(m, ""),
-                        (rm + jx, em + jy),
-                        textcoords="offset points",
-                        xytext=(7, 4),
-                        fontsize=7.5, color=color,
-                        fontweight="bold")
+                        fmt=mk, color=color, mfc=mfc, mec=color,
+                        ms=6, capsize=2, elinewidth=0.9,
+                        label=lbl, zorder=5, alpha=0.95)
 
-        ax.set_title(DS_LABEL[ds], fontsize=15, fontweight="bold")
-        ax.set_xlabel("Minority Recall  (↑ better)", fontsize=13)
-        ax.set_ylabel("ECE_minority  (↓ better)" if ax is axes[0] else "", fontsize=13)
-        ax.set_xlim(-0.05, 1.12)
+        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold")
+        ax.set_xlabel("Minority Recall  (↑)", fontsize=9)
+        ax.set_ylabel("ECE_minority  (↓)" if ax is axes[0] else "", fontsize=9)
+        ax.set_xlim(-0.05, 1.08)
         ax.set_ylim(-0.02, None)
-        ax.grid(alpha=0.3)
-        # Ideal region — bottom-right corner, small and unobtrusive
-        ax.annotate("★ Ideal", xy=(0.92, 0.01),
-                    fontsize=9, color="#27AE60", ha="center",
-                    bbox=dict(boxstyle="round,pad=0.2",
-                              facecolor="#EAFAF1", alpha=0.8,
-                              edgecolor="#27AE60", linewidth=0.8))
+        ax.grid(alpha=0.18)
 
+    # Legend to the right — completely outside all subplots
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=4,
-               fontsize=10, bbox_to_anchor=(0.5, -0.06),
-               frameon=True, title="Method", title_fontsize=11)
+    fig.legend(handles, labels,
+               loc="center left", bbox_to_anchor=(0.73, 0.50),
+               fontsize=8, frameon=True,
+               title="Method  (filled=LR, open=RF)",
+               title_fontsize=8)
     fig.suptitle(
-        "Figure 3 — Calibration-Recall Frontier\n"
-        "Each point = one method  (error bars = ±std, 5 seeds)",
-        fontsize=15, fontweight="bold",
+        "Figure 3 — Calibration-Recall Frontier  (error bars = ±std, 5 seeds)",
+        fontsize=11, fontweight="bold",
     )
     save(fig, "fig3_recall_ece_frontier")
 
@@ -435,57 +437,41 @@ def make_fig3(table):
 def make_fig4():
     print("\n[Fig 4] Severity Sweep")
     mechanisms = [
-        ("extreme_imbalance",   "IR Sensitivity",      "#4878CF"),
-        ("boundary_overlap",    "Boundary Overlap",    "#D65F5F"),
-        ("confidence_collapse", "Confidence Collapse", "#C4AD66"),
-        ("noisy_minority",      "Label Noise",         "#6ACC65"),
+        ("extreme_imbalance",   "IR Sensitivity",      "#3A6EA5", "o"),
+        ("boundary_overlap",    "Boundary Overlap",    "#C0392B", "s"),
+        ("confidence_collapse", "Confidence Collapse", "#D4AC0D", "^"),
+        ("noisy_minority",      "Label Noise",         "#27AE60", "D"),
     ]
-    severity_levels = ["mild", "moderate", "severe"]
     x_pos = np.arange(3)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    fig.subplots_adjust(top=0.82, bottom=0.12)
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    fig.subplots_adjust(top=0.84, bottom=0.12, left=0.10, right=0.68)
 
-    for mech, label, color in mechanisms:
-        ece_vals = []
-        for sev in severity_levels:
-            ds = f"{mech}_{sev}"
-            ece = load_ece(ds)
-            ece_vals.append(ece)
-
-        valid_x = [x_pos[i] for i, e in enumerate(ece_vals) if not np.isnan(e)]
-        valid_y = [e for e in ece_vals if not np.isnan(e)]
+    for mech, label, color, mk in mechanisms:
+        ece_vals = [load_ece(f"{mech}_{sev}") for sev in ["mild","moderate","severe"]]
+        valid_x  = [x_pos[i] for i, e in enumerate(ece_vals) if not np.isnan(e)]
+        valid_y  = [e for e in ece_vals if not np.isnan(e)]
         if not valid_y:
             continue
-
-        ax.plot(valid_x, valid_y, "o-", color=color,
-                lw=2.4, ms=9, label=label)
-        # FIX: alternate up/down offsets to avoid overlap between mechanisms
-        for i, (xp, yp) in enumerate(zip(valid_x, valid_y)):
-            offset_y = 14 if i % 2 == 0 else -20
-            va = "bottom" if offset_y > 0 else "top"
-            ax.annotate(f"{yp:.3f}", (xp, yp),
-                        textcoords="offset points", xytext=(0, offset_y),
-                        ha="center", fontsize=9.5, color=color,
-                        fontweight="bold", va=va)
+        ax.plot(valid_x, valid_y, marker=mk, color=color,
+                lw=1.6, ms=5, label=label)
 
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(["Mild", "Moderate", "Severe"], fontsize=13)
-    ax.set_xlabel("Severity Level", fontsize=14)
-    ax.set_ylabel("ECE_minority  (↓ better)", fontsize=14)
+    ax.set_xticklabels(["Mild", "Moderate", "Severe"], fontsize=9)
+    ax.set_xlabel("Severity Level", fontsize=9)
+    ax.set_ylabel("ECE_minority  (↓ better)", fontsize=9)
     ax.set_title(
         "Figure 4 — Calibration Degradation Across Severity Levels\n"
         "(LR + no resampling, seed=42)",
-        fontsize=15, fontweight="bold",
+        fontsize=10, fontweight="bold",
     )
-    # FIX: legend outside plot area (right side) so it never covers lines
-    ax.legend(fontsize=11, loc="upper left",
-              bbox_to_anchor=(1.02, 1.0), borderaxespad=0,
-              frameon=True, framealpha=0.9)
-    ax.grid(alpha=0.3)
+    ax.grid(alpha=0.18)
     ax.set_ylim(0, None)
-    # Extra right margin for the legend
-    fig.subplots_adjust(right=0.75)
+
+    # Legend to the right — outside the plot
+    ax.legend(fontsize=9, loc="upper left",
+              bbox_to_anchor=(1.03, 1.0), borderaxespad=0,
+              frameon=True, framealpha=0.9)
     save(fig, "fig4_severity_sweep")
 
 
@@ -496,25 +482,22 @@ def make_fig4():
 def make_fig5():
     print("\n[Fig 5] Confidence Zone Sweep")
     zones = [0.1, 0.3, 0.5, 0.7, 0.9]
-
     methods_zone = [
-        ("logistic_regression_none_none",                "LR + None",        "#4878CF", "o"),
-        ("logistic_regression_smote_none",               "LR + SMOTE",       "#D65F5F", "s"),
-        ("logistic_regression_smote_per_class_adaptive", "LR + SMOTE + PCDM","#C4AD66", "*"),
+        ("logistic_regression_none_none",                "LR + None",        "#3A6EA5", "o"),
+        ("logistic_regression_smote_none",               "LR + SMOTE",       "#C0392B", "s"),
+        ("logistic_regression_smote_per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D", "*"),
     ]
 
     def zone_ece(zone, suffix):
-        # Dataset names: confidence_zone_0p1, 0p3, 0p5, 0p7, 0p9
         zone_str = f"{zone:.1f}".replace(".", "p")
-        pat = f"*confidence_zone_{zone_str}*{suffix}*calibration_metrics.json"
-        files = sorted(METRICS_CAL.glob(pat))
+        files = sorted(METRICS_CAL.glob(
+            f"*confidence_zone_{zone_str}*{suffix}*calibration_metrics.json"))
         if not files:
             return float("nan")
-        d = json.load(open(files[0]))
-        return float(d.get("ece_minority", float("nan")))
+        return float(json.load(open(files[0])).get("ece_minority", float("nan")))
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    fig.subplots_adjust(top=0.82, bottom=0.12)
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    fig.subplots_adjust(top=0.84, bottom=0.12, left=0.10, right=0.68)
 
     for suffix, label, color, mk in methods_zone:
         ece_vals = [zone_ece(z, suffix) for z in zones]
@@ -522,54 +505,32 @@ def make_fig5():
         if not valid:
             continue
         zv, ev = zip(*valid)
-        ax.plot(zv, ev, marker=mk, color=color,
-                lw=2.4, ms=9, label=label)
-        # FIX: alternate label offsets up/down to avoid overlap with title
-        for i, (zp, ep) in enumerate(zip(zv, ev)):
-            offset_y = 14 if i % 2 == 0 else -20
-            va = "bottom" if offset_y > 0 else "top"
-            ax.annotate(f"{ep:.3f}", (zp, ep),
-                        textcoords="offset points", xytext=(0, offset_y),
-                        ha="center", fontsize=9.5, color=color,
-                        fontweight="bold", va=va)
+        ax.plot(zv, ev, marker=mk, color=color, lw=1.6, ms=5, label=label)
+
+    # Subtle shading for instability region — no text box on the plot
+    ax.axvspan(0.25, 0.55, alpha=0.06, color="#C0392B", zorder=0)
 
     ax.set_xticks(zones)
-    ax.set_xticklabels([str(z) for z in zones], fontsize=13)
-    ax.set_xlabel("Confidence Zone  (true posterior P(y=1|x) ≈ zone)", fontsize=14)
-    ax.set_ylabel("ECE_minority  (↓ better)", fontsize=14)
+    ax.set_xticklabels([str(z) for z in zones], fontsize=9)
+    ax.set_xlabel("Confidence Zone  (true P(y=1|x) ≈ zone)", fontsize=9)
+    ax.set_ylabel("ECE_minority  (↓ better)", fontsize=9)
     ax.set_title(
         "Figure 5 — Calibration Error Across Confidence Zones\n"
-        "Where does calibration instability concentrate?",
-        fontsize=15, fontweight="bold",
+        "(shaded region = instability zone)",
+        fontsize=10, fontweight="bold",
     )
-    # FIX: legend outside plot area so it doesn't cover lines
-    ax.legend(fontsize=11, loc="upper left",
-              bbox_to_anchor=(1.02, 1.0), borderaxespad=0,
-              frameon=True, framealpha=0.9)
-    ax.grid(alpha=0.3)
+    ax.grid(alpha=0.18)
     ax.set_ylim(0, None)
-    # Extra right margin for the legend
-    fig.subplots_adjust(right=0.75)
 
-    # FIX: shade instability region and place annotation at the BOTTOM
-    # so it never overlaps the data lines or value labels
-    ax.axvspan(0.25, 0.55, alpha=0.07, color="#E74C3C")
-    # Place annotation near the x-axis, not near the top
-    ax.annotate(
-        "High-instability region",
-        xy=(0.4, 0.0),
-        xytext=(0.4, -0.045),
-        textcoords="data",
-        fontsize=9, color="#C0392B", ha="center", va="top",
-        bbox=dict(boxstyle="round,pad=0.25", facecolor="#FADBD8",
-                  alpha=0.8, edgecolor="#C0392B", linewidth=0.8),
-    )
-
+    # Legend to the right — outside the plot
+    ax.legend(fontsize=9, loc="upper left",
+              bbox_to_anchor=(1.03, 1.0), borderaxespad=0,
+              frameon=True, framealpha=0.9)
     save(fig, "fig5_confidence_zone")
 
 
 # =============================================================================
-# FIGURE 6 — Synthetic Benchmark Overview (PCA scatter)
+# FIGURE 6 — Synthetic Benchmark Overview
 # =============================================================================
 
 def make_fig6():
@@ -578,68 +539,76 @@ def make_fig6():
     from sklearn.preprocessing import RobustScaler
 
     benchmarks = [
-        ("extreme_imbalance_severe",   "IR Sensitivity\n(IR=101)",        "#4878CF"),
-        ("boundary_overlap_severe",    "Boundary Overlap\n(σ=0.8)",       "#D65F5F"),
-        ("confidence_collapse_severe", "Confidence Collapse\n(zone=0.15)","#C4AD66"),
-        ("noisy_minority_severe",      "Label Noise\n(30% flip)",         "#6ACC65"),
-        ("feature_corruption_severe",  "Feature Corruption\n(50% zero)",  "#B47CC7"),
-        ("distribution_shift_severe",  "Covariate Shift\n(Δμ=3.0)",       "#F0A58F"),
+        ("extreme_imbalance_severe",   "IR Sensitivity (IR=101)",        "#3A6EA5"),
+        ("boundary_overlap_severe",    "Boundary Overlap (σ=0.8)",       "#C0392B"),
+        ("confidence_collapse_severe", "Confidence Collapse (zone=0.15)","#D4AC0D"),
+        ("noisy_minority_severe",      "Label Noise (30% flip)",         "#27AE60"),
+        ("feature_corruption_severe",  "Feature Corruption (50% zero)",  "#8E44AD"),
+        ("distribution_shift_severe",  "Covariate Shift (Δμ=3.0)",       "#E67E22"),
     ]
 
-    fig, axes = plt.subplots(2, 3, figsize=(16, 11))
-    fig.subplots_adjust(hspace=0.45, wspace=0.35, top=0.90, bottom=0.06)
+    fig, axes = plt.subplots(2, 3, figsize=(13, 8))
+    fig.subplots_adjust(hspace=0.50, wspace=0.30,
+                        top=0.88, bottom=0.10, left=0.06, right=0.97)
 
     for ax, (ds_name, title, color) in zip(axes.flatten(), benchmarks):
         csv_path = SYNTHETIC_DIR / f"{ds_name}_n5000_seed42.csv"
         if not csv_path.exists():
             ax.text(0.5, 0.5, "Data not found", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=11, color="gray")
-            ax.set_title(title, fontsize=12, fontweight="bold")
+                    transform=ax.transAxes, fontsize=9, color="#888")
+            ax.set_title(title, fontsize=9, fontweight="bold")
             ax.axis("off")
             continue
 
         df = pd.read_csv(csv_path)
-        feat_cols = [c for c in df.columns
-                     if c.startswith("feature_") and c not in
-                     ("collapse_region","collapse_variance","noise_rate",
-                      "confidence_zone","split_hint","shift_magnitude")]
-
+        skip = {"collapse_region","collapse_variance","noise_rate",
+                "confidence_zone","split_hint","shift_magnitude","label"}
+        feat_cols = [c for c in df.columns if c not in skip]
         if len(feat_cols) < 2:
             feat_cols = [c for c in df.columns if c.startswith("feature_")]
 
         X = df[feat_cols].values
         y = df["label"].values
-
-        # PCA to 2D for clean scatter
         try:
-            X_sc  = RobustScaler().fit_transform(X)
-            X_2d  = PCA(n_components=2, random_state=42).fit_transform(X_sc)
+            X_2d = PCA(n_components=2, random_state=42).fit_transform(
+                       RobustScaler().fit_transform(X))
         except Exception:
             X_2d = X[:, :2]
 
-        rng   = np.random.default_rng(42)
-        idx0  = rng.choice(np.where(y==0)[0], min(400, (y==0).sum()), replace=False)
-        idx1  = rng.choice(np.where(y==1)[0], min(100, (y==1).sum()), replace=False)
+        rng  = np.random.default_rng(42)
+        idx0 = rng.choice(np.where(y == 0)[0], min(300, (y==0).sum()), replace=False)
+        idx1 = rng.choice(np.where(y == 1)[0], min(80,  (y==1).sum()), replace=False)
 
-        ax.scatter(X_2d[idx0,0], X_2d[idx0,1],
-                   alpha=0.25, s=10, color="#AED6F1", label="Majority", rasterized=True)
-        ax.scatter(X_2d[idx1,0], X_2d[idx1,1],
-                   alpha=0.80, s=25, color=color, label="Minority",
-                   edgecolors="white", linewidths=0.5, rasterized=True)
+        ax.scatter(X_2d[idx0, 0], X_2d[idx0, 1],
+                   s=6, alpha=0.20, color="#AED6F1",
+                   rasterized=True, zorder=2)
+        ax.scatter(X_2d[idx1, 0], X_2d[idx1, 1],
+                   s=14, alpha=0.80, color=color,
+                   edgecolors="white", linewidths=0.3,
+                   rasterized=True, zorder=3)
 
-        n_min = int((y==1).sum())
-        n_maj = int((y==0).sum())
-        ir    = n_maj / max(n_min, 1)
-        ax.set_title(f"{title}\nn_min={n_min}, IR={ir:.0f}",
-                     fontsize=12, fontweight="bold")
-        ax.set_xlabel("PC 1", fontsize=10)
-        ax.set_ylabel("PC 2", fontsize=10)
-        ax.legend(fontsize=9, loc="upper right", markerscale=2)
-        ax.grid(alpha=0.2)
+        n_min = int((y == 1).sum())
+        ir    = int((y == 0).sum()) / max(n_min, 1)
+        ax.set_title(f"{title}\n(n_min={n_min}, IR={ir:.0f})",
+                     fontsize=8.5, fontweight="bold")
+        ax.set_xlabel("PC 1", fontsize=8)
+        ax.set_ylabel("PC 2", fontsize=8)
+        ax.tick_params(labelsize=7)
+        ax.grid(alpha=0.12)
 
+    # Single shared legend at the bottom
+    legend_handles = [
+        Line2D([0],[0], marker="o", color="w", mfc="#AED6F1",
+               ms=6, label="Majority class"),
+        Line2D([0],[0], marker="o", color="w", mfc="#888888",
+               ms=6, label="Minority class (colour = mechanism)"),
+    ]
+    fig.legend(handles=legend_handles, loc="lower center", ncol=2,
+               fontsize=9, bbox_to_anchor=(0.5, 0.02), frameon=True)
     fig.suptitle(
-        "Figure 6 — Calibration Stress Test Suite  (PCA projection, severe severity, seed=42)",
-        fontsize=15, fontweight="bold",
+        "Figure 6 — Calibration Stress Test Suite  "
+        "(PCA projection, severe severity, seed=42)",
+        fontsize=11, fontweight="bold",
     )
     save(fig, "fig6_synthetic_benchmark")
 
@@ -651,26 +620,31 @@ def make_fig6():
 def make_appendix_a():
     print("\n[Appendix A] Per-Dataset Reliability")
     methods_info = [
-        ("logistic_regression+none+none",                "LR + None",        "#4878CF"),
-        ("logistic_regression+smote+none",               "LR + SMOTE",       "#D65F5F"),
-        ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#C4AD66"),
+        ("logistic_regression+none+none",                "LR + None",        "#3A6EA5"),
+        ("logistic_regression+smote+none",               "LR + SMOTE",       "#C0392B"),
+        ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D"),
     ]
     datasets_plot = ["pima", "phoneme", "credit_card"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(17, 6))
-    fig.subplots_adjust(wspace=0.32, top=0.82, bottom=0.12)
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4.5))
+    fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.14,
+                        left=0.07, right=0.72)
 
     for ax, ds in zip(axes, datasets_plot):
-        _reliability_bands(ax, ds, "minority", methods_info)
-        ax.set_title(DS_LABEL[ds], fontsize=14, fontweight="bold")
-        ax.set_xlabel("Mean predicted confidence", fontsize=12)
-        ax.set_ylabel("Fraction of minority positives" if ax is axes[0] else "", fontsize=12)
-        ax.legend(fontsize=10, loc="upper left")
+        _draw_reliability(ax, ds, "minority", methods_info)
+        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold")
+        ax.set_xlabel("Mean predicted confidence", fontsize=9)
+        ax.set_ylabel("Fraction of minority positives" if ax is axes[0] else "", fontsize=9)
 
+    # Single legend to the right
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels,
+               loc="center left", bbox_to_anchor=(0.73, 0.50),
+               fontsize=9, frameon=True, title="Method", title_fontsize=9)
     fig.suptitle(
-        "Appendix Figure A — Minority-Class Reliability Diagrams  (5 seeds)\n"
-        "Shaded band = ±1 std",
-        fontsize=14, fontweight="bold",
+        "Appendix Figure A — Minority-Class Reliability Diagrams  "
+        "(5 seeds, shaded = ±1 std)",
+        fontsize=11, fontweight="bold",
     )
     save(fig, "appendix_fig_a_reliability")
 
@@ -682,14 +656,15 @@ def make_appendix_a():
 def make_appendix_b(table):
     print("\n[Appendix B] Seed Variance")
     methods_var = [
-        ("logistic_regression+none+none",                "LR+None",       "#4878CF"),
-        ("logistic_regression+smote+none",               "LR+SMOTE",      "#D65F5F"),
-        ("logistic_regression+smote+per_class_adaptive", "LR+SMOTE+PCDM", "#C4AD66"),
+        ("logistic_regression+none+none",                "LR + None",       "#3A6EA5"),
+        ("logistic_regression+smote+none",               "LR + SMOTE",      "#C0392B"),
+        ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE+PCDM", "#D4AC0D"),
     ]
     datasets_var = ["pima", "phoneme"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 6))
-    fig.subplots_adjust(wspace=0.32, top=0.82, bottom=0.15)
+    fig, axes = plt.subplots(1, 2, figsize=(9, 4.5))
+    fig.subplots_adjust(wspace=0.28, top=0.82, bottom=0.18,
+                        left=0.09, right=0.97)
 
     for ax, ds in zip(axes, datasets_var):
         x      = np.arange(len(methods_var))
@@ -698,27 +673,22 @@ def make_appendix_b(table):
         colors = [c for _, _, c in methods_var]
         labels = [lbl.replace("LR + ", "") for _, lbl, _ in methods_var]
 
-        ax.bar(x, means, 0.55, color=colors, alpha=0.85,
-               edgecolor="white", linewidth=1.2)
+        ax.bar(x, means, 0.50, color=colors, alpha=0.75,
+               edgecolor="white", linewidth=0.8)
         ax.errorbar(x, means, yerr=stds, fmt="none",
-                    capsize=7, elinewidth=2.2, ecolor="#333")
-
-        for xi, (mn, sd) in enumerate(zip(means, stds)):
-            if not np.isnan(mn):
-                ax.text(xi, mn + sd + 0.012, f"σ={sd:.3f}",
-                        ha="center", va="bottom", fontsize=10, color="#444")
+                    capsize=4, elinewidth=1.2, ecolor="#444")
 
         ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=20, ha="right", fontsize=11)
-        ax.set_ylabel("ECE_minority" if ax is axes[0] else "", fontsize=13)
-        ax.set_title(DS_LABEL[ds], fontsize=14, fontweight="bold")
+        ax.set_xticklabels(labels, rotation=18, ha="right", fontsize=9)
+        ax.set_ylabel("ECE_minority" if ax is axes[0] else "", fontsize=9)
+        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold")
         ax.set_ylim(0, None)
-        ax.grid(axis="y", alpha=0.3)
+        ax.grid(axis="y", alpha=0.18)
 
     fig.suptitle(
-        "Appendix Figure B — ECE_minority Variance Across 5 Seeds\n"
-        "Error bars = ±1 std",
-        fontsize=14, fontweight="bold",
+        "Appendix Figure B — ECE_minority Variance Across 5 Seeds  "
+        "(error bars = ±1 std)",
+        fontsize=11, fontweight="bold",
     )
     save(fig, "appendix_fig_b_seed_variance")
 
@@ -729,13 +699,14 @@ def make_appendix_b(table):
 
 def main():
     print("=" * 60)
-    print("  Paper Output Generator v2")
+    print("  Paper Output Generator — Academic Clean Version")
     print(f"  Output: {OUT.resolve()}")
     print("=" * 60)
 
     table = load_table()
     if not table:
-        print("[ERROR] Paper table not found. Run: python scripts/_build_paper_table.py")
+        print("[ERROR] Paper table not found.")
+        print("  Run: python scripts/_build_paper_table.py")
         sys.exit(1)
 
     make_tables(table)
@@ -755,7 +726,8 @@ def main():
     print(f"  Done.  {len(pdfs)} PDFs  |  {len(pngs)} PNGs  |  {len(csvs)} CSVs")
     print("=" * 60)
     for f in pdfs:
-        print(f"  {f.name}  ({f.stat().st_size//1024} KB)")
+        print(f"  {f.name}  ({f.stat().st_size // 1024} KB)")
+
 
 if __name__ == "__main__":
     main()

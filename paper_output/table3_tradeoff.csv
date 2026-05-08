@@ -1,6 +1,6 @@
-Method,pima_recall_mean,pima_recall_std,pima_ECE_min_mean,pima_ECE_min_std,phoneme_recall_mean,phoneme_recall_std,phoneme_ECE_min_mean,phoneme_ECE_min_std
-LR + None,0.5111,0.0446,0.4564,0.0354,0.47,0.0393,0.5329,0.0141
-LR + SMOTE,0.6889,0.0422,0.3447,0.0332,0.788,0.0258,0.3482,0.0141
-LR + ClassWt,0.6852,0.0414,0.3465,0.0316,0.788,0.0252,0.3484,0.0137
-LR + SMOTE + TS,0.6889,0.0422,0.3536,0.0336,0.788,0.0258,0.3581,0.0116
-LR + SMOTE + PCDM,0.6889,0.0422,0.3379,0.0354,0.788,0.0258,0.3243,0.0121
+Method,pima_recall,pima_ece_min,phoneme_recall,phoneme_ece_min
+LR + None,0.511±0.045,0.456±0.035,0.470±0.039,0.533±0.014
+LR + SMOTE,0.689±0.042,0.345±0.033,0.788±0.026,0.348±0.014
+LR + ClassWt,0.685±0.041,0.346±0.032,0.788±0.025,0.348±0.014
+LR + SMOTE + TS,0.689±0.042,0.354±0.034,0.788±0.026,0.358±0.012
+LR + SMOTE + PCDM,0.689±0.042,0.338±0.035,0.788±0.026,0.324±0.012
