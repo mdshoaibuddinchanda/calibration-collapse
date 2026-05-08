@@ -23,7 +23,7 @@ description: >
   temperature scaling. Uses best-performing methods from Phase 1.
   Primary question: does per-class calibration reduce ECE_minority?
 
-datasets: [pima, phoneme, credit_card]
+datasets: [pima, phoneme, default_credit_card_clients]
 
 models:
   - logistic_regression   # best baseline from Phase 1

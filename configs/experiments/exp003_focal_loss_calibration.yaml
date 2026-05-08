@@ -22,7 +22,7 @@ description: >
   Tests whether focal loss interacts with post-hoc calibration differently
   than resampling. Measures calibration drift across training epochs.
 
-datasets: [pima, phoneme, credit_card]
+datasets: [pima, phoneme, default_credit_card_clients]
 
 models: [mlp]
 

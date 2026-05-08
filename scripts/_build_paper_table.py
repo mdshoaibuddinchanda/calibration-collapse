@@ -9,7 +9,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 ROOT = Path(__file__).parent.parent
 multiseed_dir = ROOT / "outputs" / "multiseed"
 
-DATASETS = ["pima", "phoneme", "credit_card", "extreme_imbalance_severe"]
+DATASETS = [
+    "pima", "phoneme", "default_credit_card_clients", "extreme_imbalance_severe",
+    "bank_marketing", "dry_bean", "mammography", "thyroid_disease",
+]
 KEY_METRICS = ["ece_global", "ece_minority", "recall_minority", "f1_minority", "auc_roc", "brier_minority"]
 
 # Load all controlled_validation results
@@ -127,4 +130,4 @@ with open(out_path, "w") as fh:
     json.dump(table, fh, indent=2)
 print(f"\nFull table saved to: {out_path}")
 print(f"Total methods: {len(table)}")
-print(f"Total datasets: {len(DATASETS)}")
+print(f"Total datasets: {len([d for d in DATASETS if any(d in table[m] for m in table)])}")

@@ -3,6 +3,7 @@
 ## Mechanism
 
 SMOTE generates synthetic minority samples by:
+
 1. For each minority sample $x_i$, find its $k$ nearest minority neighbors
 2. Randomly select one neighbor $x_j$
 3. Generate synthetic sample: $x_{\text{syn}} = x_i + \lambda (x_j - x_i)$, where $\lambda \sim U[0,1]$
@@ -16,6 +17,7 @@ By construction, SMOTE generates samples *between* existing minority samples. Wh
 ### Gradient Noise
 
 During training, the model receives gradients from:
+
 - Real majority samples: pushing the boundary away from majority region
 - Real minority samples: pushing the boundary toward minority region  
 - **Synthetic minority samples**: also pushing toward minority region, but from positions that may not reflect the true data distribution

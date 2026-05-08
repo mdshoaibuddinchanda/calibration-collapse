@@ -22,7 +22,7 @@ description: >
   baseline models. Establish ECE_global vs ECE_minority gap and the
   calibration-recall tradeoff.
 
-datasets: [pima, phoneme, credit_card]
+datasets: [pima, phoneme, default_credit_card_clients]
 
 models:
   - logistic_regression

@@ -2,7 +2,7 @@
 Controlled Multi-Seed Validation — the primary statistical evidence for the paper.
 
 Runs the full validation matrix:
-  Datasets:  pima, phoneme, credit_card, extreme_imbalance_severe
+    Datasets:  pima, phoneme, default_credit_card_clients, extreme_imbalance_severe
   Models:    logistic_regression, random_forest
   Methods:   5 (resampler + calibrator combinations)
   Seeds:     5 (0, 1, 2, 3, 4)
@@ -22,13 +22,13 @@ Usage
     python scripts/run_controlled_validation.py
 
     # Single dataset
-    python scripts/run_controlled_validation.py --datasets credit_card
+    python scripts/run_controlled_validation.py --datasets default_credit_card_clients
 
     # Quick test (3 seeds, LR only)
     python scripts/run_controlled_validation.py --quick
 
     # Resume from a specific dataset
-    python scripts/run_controlled_validation.py --datasets phoneme credit_card extreme_imbalance_severe
+    python scripts/run_controlled_validation.py --datasets phoneme default_credit_card_clients extreme_imbalance_severe
 """
 from __future__ import annotations
 
@@ -53,7 +53,12 @@ from src.visualization.uncertainty_reliability import UncertaintyReliabilityDiag
 # Validation matrix definition
 # ---------------------------------------------------------------------------
 
-ALL_DATASETS = ["pima", "phoneme", "credit_card", "extreme_imbalance_severe"]
+ALL_DATASETS = [
+    "pima", "phoneme", "credit_card", "default_credit_card_clients",
+    "extreme_imbalance_severe",
+    "bank_marketing", "dry_bean", "give_me_some_credit",
+    "mammography", "thyroid_disease",
+]
 
 # 5 methods covering the paper's core comparisons:
 #   baseline (no resampling, no calibration)

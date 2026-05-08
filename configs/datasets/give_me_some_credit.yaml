@@ -1,5 +1,5 @@
-name: default_credit_card_clients
-path: datasets/raw/default_credit_card_clients.csv
+name: give_me_some_credit
+path: datasets/raw/give_me_some_credit.csv
 target_column: label
 positive_class: 1
 feature_columns: null
@@ -7,4 +7,4 @@ imbalance_ratio: null
 encoding: utf-8
 separator: ","
 missing_value_strategy: median
-expected_imbalance_range: [20, 1000]
+expected_imbalance_range: [5, 500]

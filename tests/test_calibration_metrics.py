@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from src.evaluation.calibration_metrics import CalibrationMetrics
+from src.evaluation.classification_metrics import ClassificationMetrics
 
 
 class TestECEGlobal:
@@ -154,6 +155,20 @@ class TestPerClassECE:
         assert not np.isnan(result.ece_minority)
         assert not np.isnan(result.ece_majority)
 
+    def test_minority_ece_is_skipped_when_too_sparse(self):
+        """Minority ECE should be flagged unreliable below the 30-sample threshold."""
+        rng = np.random.default_rng(11)
+        p = rng.random(129)
+        y = np.array([0] * 100 + [1] * 29)
+        cal = CalibrationMetrics(n_bins=10)
+
+        result = cal.compute(p, y)
+
+        assert np.isnan(result.ece_minority)
+        assert result.ece_minority_reliable is False
+        assert result.n_bins_minority == 0
+        assert not np.isnan(result.brier_minority)
+
 
 class TestBrierScore:
     """Test Brier Score computation."""
@@ -194,3 +209,43 @@ class TestAdaptiveECE:
         cal = CalibrationMetrics(n_bins=10)
         result = cal.compute(p, y)
         assert 0.0 <= result.ace_global <= 1.0
+
+
+class TestMulticlassCalibration:
+    """Test multiclass macro class-conditional calibration metrics."""
+
+    def test_multiclass_macro_class_conditional_ece(self):
+        """A perfectly calibrated multiclass model should have near-zero macro ECE."""
+        y = np.array([0] * 40 + [1] * 40 + [2] * 40)
+        proba = np.zeros((120, 3))
+        proba[np.arange(120), y] = 1.0
+
+        cal = CalibrationMetrics(n_bins=5)
+        result = cal.compute(proba, y)
+
+        assert result.n_classes == 3
+        assert result.class_labels == [0, 1, 2]
+        assert result.ece_macro_class == pytest.approx(0.0, abs=1e-6)
+        assert result.brier_macro_class == pytest.approx(0.0, abs=1e-6)
+        assert all(
+            value == pytest.approx(0.0, abs=1e-6)
+            for value in result.ece_per_class.values()
+        )
+
+
+class TestMulticlassClassification:
+    """Test multiclass classification metrics."""
+
+    def test_multiclass_classification_metrics(self):
+        """Perfect multiclass predictions should produce perfect classification scores."""
+        y = np.array([0] * 30 + [1] * 30 + [2] * 30)
+        proba = np.zeros((90, 3))
+        proba[np.arange(90), y] = 1.0
+
+        cls = ClassificationMetrics()
+        result = cls.compute(proba, y)
+
+        assert result.f1_macro == pytest.approx(1.0, abs=1e-6)
+        assert result.recall_minority == pytest.approx(1.0, abs=1e-6)
+        assert result.recall_majority == pytest.approx(1.0, abs=1e-6)
+        assert result.auc_roc == pytest.approx(1.0, abs=1e-6)

@@ -13,13 +13,13 @@ This is the primary statistical robustness evidence for the paper.
 Usage
 -----
     # Full multi-seed run (recommended: 5 seeds)
-    python scripts/run_multiseed.py --dataset credit_card --seeds 0 1 2 3 4
+    python scripts/run_multiseed.py --dataset default_credit_card_clients --seeds 0 1 2 3 4
 
     # Quick validation (3 seeds)
     python scripts/run_multiseed.py --dataset pima --seeds 0 1 2 --quick
 
     # Compare specific methods
-    python scripts/run_multiseed.py --dataset credit_card --seeds 0 1 2 3 4 \\
+    python scripts/run_multiseed.py --dataset default_credit_card_clients --seeds 0 1 2 3 4 \\
         --methods "none+none" "smote+none" "smote+temperature_scaling" "smote+per_class_adaptive"
 """
 from __future__ import annotations
@@ -65,7 +65,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--dataset", required=True,
-        help="Dataset name (pima, phoneme, credit_card, or synthetic dataset name)",
+        help="Dataset name (pima, phoneme, default_credit_card_clients, or synthetic dataset name)",
     )
     parser.add_argument(
         "--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4],

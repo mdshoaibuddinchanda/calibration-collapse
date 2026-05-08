@@ -82,8 +82,11 @@ MARKERS = {
 DS_LABEL = {
     "pima":                     "Pima (IR=1.9)",
     "phoneme":                  "Phoneme (IR=2.4)",
-    "credit_card":              "Credit Card (IR=580)",
+    "default_credit_card_clients": "Default Credit Card Clients (IR≈11.6)",
     "extreme_imbalance_severe": "Extreme Imb. (IR=101)",
+}
+LEGACY_DATASET_ALIASES = {
+    "default_credit_card_clients": "credit_card",
 }
 M_LABEL = {
     "logistic_regression+none+none":                 "LR + None",
@@ -105,11 +108,15 @@ def load_table():
     return json.load(open(p)) if p.exists() else {}
 
 def gm(table, method, ds, metric):
-    try:
-        d = table[method][ds][metric]
-        return float(d["mean"]), float(d["std"])
-    except (KeyError, TypeError):
-        return float("nan"), float("nan")
+    for key in (ds, LEGACY_DATASET_ALIASES.get(ds)):
+        if not key:
+            continue
+        try:
+            d = table[method][key][metric]
+            return float(d["mean"]), float(d["std"])
+        except (KeyError, TypeError):
+            continue
+    return float("nan"), float("nan")
 
 def save(fig, stem):
     fig.savefig(OUT / f"{stem}.pdf", format="pdf", bbox_inches="tight")
@@ -118,16 +125,31 @@ def save(fig, stem):
     plt.close(fig)
 
 def load_ece(dataset_name, suffix="logistic_regression_none_none"):
-    files = sorted(METRICS_CAL.glob(f"*{dataset_name}*{suffix}*calibration_metrics.json"))
+    candidates = [dataset_name]
+    legacy = LEGACY_DATASET_ALIASES.get(dataset_name)
+    if legacy:
+        candidates.append(legacy)
+    files = []
+    for candidate in candidates:
+        files = sorted(METRICS_CAL.glob(f"*{candidate}*{suffix}*calibration_metrics.json"))
+        if files:
+            break
     if not files:
         return float("nan")
     return float(json.load(open(files[0])).get("ece_minority", float("nan")))
 
 def load_multiseed(ds, method_key):
-    safe  = method_key.replace("+", "_")
-    fname = f"controlled_validation_{ds}_{ds}_{safe}_multiseed.json"
-    p = MULTISEED_DIR / fname
-    return json.load(open(p)) if p.exists() else {}
+    safe = method_key.replace("+", "_")
+    candidates = [ds]
+    legacy = LEGACY_DATASET_ALIASES.get(ds)
+    if legacy:
+        candidates.append(legacy)
+    for candidate in candidates:
+        fname = f"controlled_validation_{candidate}_{candidate}_{safe}_multiseed.json"
+        p = MULTISEED_DIR / fname
+        if p.exists():
+            return json.load(open(p))
+    return {}
 
 
 # =============================================================================
@@ -146,13 +168,13 @@ def make_tables(table):
         "random_forest+smote+none",
         "random_forest+smote+per_class_adaptive",
     ]
-    datasets_main = ["pima", "phoneme", "credit_card"]
+    datasets_main = ["pima", "phoneme", "default_credit_card_clients"]
 
     # Table 1
     pd.DataFrame([
         ["Pima",               "Real",       768,   8,   1.9,  268,  "Mild imbalance baseline"],
         ["Phoneme",            "Real",      5404,   5,   2.4, 1586,  "Moderate imbalance"],
-        ["Credit Card",        "Real/Proxy",28480, 29, 580.0,   49,  "Extreme imbalance"],
+        ["Default Credit Card Clients", "Real", 30000, 23, 11.6, "",  "Real credit dataset"],
         ["Extreme Imb. (syn.)","Synthetic", 5000,  10, 101.0,   49,  "IR stress (controlled)"],
         ["Conf. Collapse (syn.)","Synthetic",5000, 12,  20.0,  238,  "Confidence instability"],
     ], columns=["Dataset","Type","Samples","Features","IR","Minority_n","Role"]
@@ -232,7 +254,7 @@ def make_fig1(table):
         ("random_forest+none+none",                      "RF+None",       "#85C1E9"),
         ("random_forest+smote+none",                     "RF+SMOTE",      "#F1948A"),
     ]
-    datasets_plot = ["pima", "phoneme", "credit_card"]
+    datasets_plot = ["pima", "phoneme", "default_credit_card_clients"]
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     fig.subplots_adjust(wspace=0.32, top=0.82, bottom=0.30, left=0.07, right=0.97)
@@ -387,7 +409,7 @@ def make_fig3(table):
         "random_forest+smote+none":                      (-0.015,  0.000),
         "random_forest+smote+per_class_adaptive":        ( 0.000,  0.015),
     }
-    datasets_plot = ["pima", "phoneme", "credit_card"]
+    datasets_plot = ["pima", "phoneme", "default_credit_card_clients"]
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 5.5))
     fig.subplots_adjust(wspace=0.28, top=0.82, bottom=0.30,
@@ -621,7 +643,7 @@ def make_appendix_a():
         ("logistic_regression+smote+none",               "LR + SMOTE",       "#C0392B"),
         ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D"),
     ]
-    datasets_plot = ["pima", "phoneme", "credit_card"]
+    datasets_plot = ["pima", "phoneme", "default_credit_card_clients"]
 
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.5))
     fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.14,

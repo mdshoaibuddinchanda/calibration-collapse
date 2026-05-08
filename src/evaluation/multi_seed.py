@@ -16,7 +16,7 @@ Usage
 -----
     validator = MultiSeedValidator(seeds=[0, 1, 2, 3, 4], project_root=ROOT)
     report = validator.run(
-        dataset_name="credit_card",
+        dataset_name="default_credit_card_clients",
         model_name="logistic_regression",
         resampler_name="smote",
         calibrator_name="temperature_scaling",

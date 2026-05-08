@@ -18,6 +18,7 @@ from sklearn.metrics import (
     average_precision_score,
     confusion_matrix,
 )
+from sklearn.preprocessing import label_binarize
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +63,25 @@ class ClassificationMetrics:
         output_dir: Optional[Path] = None,
         filename_suffix: Optional[str] = None,
     ) -> ClassificationResult:
+        y = np.asarray(y_true)
+        classes = np.unique(y)
+        if len(classes) < 2:
+            raise ValueError(f"Expected at least 2 classes, got classes: {classes}")
+
+        if len(classes) > 2:
+            return self._compute_multiclass(
+                proba=proba,
+                y=y,
+                classes=classes,
+                experiment_id=experiment_id,
+                dataset=dataset,
+                method=method,
+                output_dir=output_dir,
+                filename_suffix=filename_suffix,
+            )
+
         p = proba[:, 1] if proba.ndim == 2 else proba
-        y = y_true.astype(int)
+        y = y.astype(int)
         y_pred = (p >= threshold).astype(int)
 
         classes = np.unique(y)
@@ -119,6 +137,87 @@ class ClassificationMetrics:
             "[%s/%s/%s] F1_minority=%.4f, AUC_ROC=%.4f, Recall_minority=%.4f",
             experiment_id, dataset, method,
             f1_min, auc_roc, float(rec_per[minority_class]),
+        )
+
+        if output_dir is not None:
+            self._write_result(result, output_dir, filename_suffix)
+
+        return result
+
+    def _compute_multiclass(
+        self,
+        proba: np.ndarray,
+        y: np.ndarray,
+        classes: np.ndarray,
+        experiment_id: str,
+        dataset: str,
+        method: str,
+        output_dir: Optional[Path],
+        filename_suffix: Optional[str],
+    ) -> ClassificationResult:
+        """Compute class-conditional classification metrics for multiclass targets."""
+        if proba.ndim != 2:
+            raise ValueError("Multiclass classification metrics require a 2D probability array.")
+        if proba.shape[1] != len(classes):
+            raise ValueError(
+                f"Probability matrix has {proba.shape[1]} columns but target has {len(classes)} classes."
+            )
+
+        class_labels = list(classes)
+        class_to_index = {cls: idx for idx, cls in enumerate(class_labels)}
+        y_indices = np.array([class_to_index[label] for label in y])
+        y_pred_indices = np.argmax(proba, axis=1)
+        y_pred = np.array([class_labels[idx] for idx in y_pred_indices])
+        counts = {cls: int((y == cls).sum()) for cls in class_labels}
+        minority_class = min(counts, key=counts.get)
+        majority_class = max(counts, key=counts.get)
+
+        f1_per_class = f1_score(y, y_pred, average=None, labels=class_labels, zero_division=0)
+        prec_per = precision_score(y, y_pred, average=None, labels=class_labels, zero_division=0)
+        rec_per = recall_score(y, y_pred, average=None, labels=class_labels, zero_division=0)
+
+        try:
+            auc_roc = float(roc_auc_score(y, proba, multi_class="ovr", average="macro"))
+        except ValueError:
+            auc_roc = float("nan")
+
+        try:
+            y_bin = label_binarize(y, classes=class_labels)
+            auc_pr = float(average_precision_score(y_bin, proba, average="macro"))
+        except ValueError:
+            auc_pr = float("nan")
+
+        cm = confusion_matrix(y, y_pred, labels=class_labels).tolist()
+
+        minority_idx = class_to_index[minority_class]
+        majority_idx = class_to_index[majority_class]
+
+        result = ClassificationResult(
+            experiment_id=experiment_id,
+            dataset=dataset,
+            method=method,
+            f1_minority=float(f1_per_class[minority_idx]),
+            f1_majority=float(f1_per_class[majority_idx]),
+            f1_macro=float(f1_score(y, y_pred, average="macro", zero_division=0)),
+            f1_weighted=float(f1_score(y, y_pred, average="weighted", zero_division=0)),
+            precision_minority=float(prec_per[minority_idx]),
+            precision_majority=float(prec_per[majority_idx]),
+            recall_minority=float(rec_per[minority_idx]),
+            recall_majority=float(rec_per[majority_idx]),
+            auc_roc=auc_roc,
+            auc_pr=auc_pr,
+            n_samples_minority=counts[minority_class],
+            n_samples_majority=counts[majority_class],
+            minority_class=minority_class,
+            majority_class=majority_class,
+            confusion_matrix=cm,
+            threshold=0.5,
+        )
+
+        logger.info(
+            "[%s/%s/%s] F1_minority=%.4f, AUC_ROC=%.4f, Recall_minority=%.4f",
+            experiment_id, dataset, method,
+            float(f1_per_class[minority_idx]), auc_roc, float(rec_per[minority_idx]),
         )
 
         if output_dir is not None:
