@@ -234,12 +234,12 @@ def make_fig1(table):
     ]
     datasets_plot = ["pima", "phoneme", "credit_card"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-    fig.subplots_adjust(wspace=0.30, top=0.82, bottom=0.28, left=0.07, right=0.97)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.subplots_adjust(wspace=0.32, top=0.82, bottom=0.30, left=0.07, right=0.97)
 
     for ax, ds in zip(axes, datasets_plot):
-        x = np.arange(len(methods_plot))
-        w = 0.34
+        x = np.arange(len(methods_plot)) * 1.3   # wider spacing between groups
+        w = 0.32
         g_m  = [gm(table, m, ds, "ece_global")[0]   for m, _, _ in methods_plot]
         g_s  = [gm(table, m, ds, "ece_global")[1]   for m, _, _ in methods_plot]
         mi_m = [gm(table, m, ds, "ece_minority")[0] for m, _, _ in methods_plot]
@@ -255,7 +255,7 @@ def make_fig1(table):
         ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold", pad=6)
         ax.set_xticks(x)
         ax.set_xticklabels([lbl for _, lbl, _ in methods_plot],
-                           rotation=35, ha="right", fontsize=8)
+                           rotation=20, ha="right", fontsize=8)
         ax.set_ylabel("ECE  (↓ better)" if ax is axes[0] else "", fontsize=9)
         ax.set_ylim(0, None)
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
@@ -271,7 +271,7 @@ def make_fig1(table):
                bbox_to_anchor=(0.5, 0.01), frameon=True)
     fig.suptitle(
         "Figure 1 — Global ECE vs Minority-Class ECE  (error bars = ±std, 5 seeds)",
-        fontsize=11, fontweight="bold",
+        fontsize=10, fontweight="bold",
     )
     save(fig, "fig1_calibration_gap")
 
@@ -334,28 +334,25 @@ def make_fig2():
         ("logistic_regression+smote+none",               "LR + SMOTE",       "#C0392B"),
         ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D"),
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-    fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.14,
-                        left=0.08, right=0.72)
+    # Only global reliability — minority subplot pins at y=1.0 and adds no information
+    fig, ax = plt.subplots(1, 1, figsize=(6, 4.5))
+    fig.subplots_adjust(top=0.82, bottom=0.14, left=0.12, right=0.68)
 
-    titles = ["Global Reliability", "Minority-Class Reliability"]
-    keys   = ["global", "minority"]
-    for ax, class_key, title in zip(axes, keys, titles):
-        _draw_reliability(ax, "phoneme", class_key, methods_info)
-        ax.set_title(title, fontsize=10, fontweight="bold")
-        ax.set_xlabel("Mean predicted confidence", fontsize=9)
-        ax.set_ylabel("Fraction of positives", fontsize=9)
+    _draw_reliability(ax, "phoneme", "global", methods_info)
+    ax.set_title("Global Reliability  (Phoneme)", fontsize=10, fontweight="bold")
+    ax.set_xlabel("Mean predicted confidence", fontsize=9)
+    ax.set_ylabel("Fraction of positives", fontsize=9)
 
-    # Single legend to the right of both subplots — never overlaps data
-    handles, labels = axes[0].get_legend_handles_labels()
+    # Legend to the right — outside the plot
+    handles, labels = ax.get_legend_handles_labels()
     fig.legend(handles, labels,
-               loc="center left", bbox_to_anchor=(0.73, 0.50),
+               loc="center left", bbox_to_anchor=(0.70, 0.50),
                fontsize=9, frameon=True, title="Method", title_fontsize=9)
 
     fig.suptitle(
-        "Figure 2 — Reliability Diagrams with Uncertainty Bands  "
+        "Figure 2 — Reliability Diagram with Uncertainty Bands\n"
         "(Phoneme, 5 seeds, shaded = ±1 std)",
-        fontsize=11, fontweight="bold",
+        fontsize=10, fontweight="bold",
     )
     save(fig, "fig2_reliability_uncertainty")
 
@@ -392,9 +389,9 @@ def make_fig3(table):
     }
     datasets_plot = ["pima", "phoneme", "credit_card"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
-    fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.22,
-                        left=0.07, right=0.72)
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5.5))
+    fig.subplots_adjust(wspace=0.28, top=0.82, bottom=0.30,
+                        left=0.07, right=0.97)
 
     for ax, ds in zip(axes, datasets_plot):
         for m, lbl, color, mk, filled in methods_plot:
@@ -416,16 +413,17 @@ def make_fig3(table):
         ax.set_ylim(-0.02, None)
         ax.grid(alpha=0.18)
 
-    # Legend to the right — completely outside all subplots
+    # Legend at the bottom center — journal style
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels,
-               loc="center left", bbox_to_anchor=(0.73, 0.50),
-               fontsize=8, frameon=True,
-               title="Method  (filled=LR, open=RF)",
+               loc="lower center", ncol=4,
+               fontsize=8, bbox_to_anchor=(0.5, 0.01),
+               frameon=True,
+               title="Method  (filled = LR,  open = RF)",
                title_fontsize=8)
     fig.suptitle(
         "Figure 3 — Calibration-Recall Frontier  (error bars = ±std, 5 seeds)",
-        fontsize=11, fontweight="bold",
+        fontsize=10, fontweight="bold",
     )
     save(fig, "fig3_recall_ece_frontier")
 
@@ -459,14 +457,16 @@ def make_fig4():
     ax.set_xticks(x_pos)
     ax.set_xticklabels(["Mild", "Moderate", "Severe"], fontsize=9)
     ax.set_xlabel("Severity Level", fontsize=9)
-    ax.set_ylabel("ECE_minority  (↓ better)", fontsize=9)
+    ax.set_ylabel("ECE_minority  (log scale, ↓ better)", fontsize=9)
     ax.set_title(
         "Figure 4 — Calibration Degradation Across Severity Levels\n"
         "(LR + no resampling, seed=42)",
         fontsize=10, fontweight="bold",
     )
-    ax.grid(alpha=0.18)
-    ax.set_ylim(0, None)
+    ax.set_yscale("log")                    # log scale fixes visual compression
+    ax.yaxis.set_major_formatter(ticker.LogFormatterSciNotation(labelOnlyBase=False))
+    ax.grid(alpha=0.18, which="both")
+    ax.set_ylim(bottom=1e-3)
 
     # Legend to the right — outside the plot
     ax.legend(fontsize=9, loc="upper left",
@@ -482,10 +482,9 @@ def make_fig4():
 def make_fig5():
     print("\n[Fig 5] Confidence Zone Sweep")
     zones = [0.1, 0.3, 0.5, 0.7, 0.9]
+    # Single method — LR + None (zone data only available for this method)
     methods_zone = [
-        ("logistic_regression_none_none",                "LR + None",        "#3A6EA5", "o"),
-        ("logistic_regression_smote_none",               "LR + SMOTE",       "#C0392B", "s"),
-        ("logistic_regression_smote_per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D", "*"),
+        ("logistic_regression_none_none", "LR + None", "#3A6EA5", "o"),
     ]
 
     def zone_ece(zone, suffix):
@@ -497,7 +496,7 @@ def make_fig5():
         return float(json.load(open(files[0])).get("ece_minority", float("nan")))
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
-    fig.subplots_adjust(top=0.84, bottom=0.12, left=0.10, right=0.68)
+    fig.subplots_adjust(top=0.84, bottom=0.12, left=0.12, right=0.95)
 
     for suffix, label, color, mk in methods_zone:
         ece_vals = [zone_ece(z, suffix) for z in zones]
@@ -516,16 +515,12 @@ def make_fig5():
     ax.set_ylabel("ECE_minority  (↓ better)", fontsize=9)
     ax.set_title(
         "Figure 5 — Calibration Error Across Confidence Zones\n"
-        "(shaded region = instability zone)",
+        "(shaded region = instability zone,  LR + no resampling)",
         fontsize=10, fontweight="bold",
     )
     ax.grid(alpha=0.18)
     ax.set_ylim(0, None)
-
-    # Legend to the right — outside the plot
-    ax.legend(fontsize=9, loc="upper left",
-              bbox_to_anchor=(1.03, 1.0), borderaxespad=0,
-              frameon=True, framealpha=0.9)
+    # No legend — single-line plots do not need one
     save(fig, "fig5_confidence_zone")
 
 
@@ -548,7 +543,7 @@ def make_fig6():
     ]
 
     fig, axes = plt.subplots(2, 3, figsize=(13, 8))
-    fig.subplots_adjust(hspace=0.50, wspace=0.30,
+    fig.subplots_adjust(hspace=0.48, wspace=0.28,
                         top=0.88, bottom=0.10, left=0.06, right=0.97)
 
     for ax, (ds_name, title, color) in zip(axes.flatten(), benchmarks):
@@ -604,7 +599,9 @@ def make_fig6():
                ms=6, label="Minority class (colour = mechanism)"),
     ]
     fig.legend(handles=legend_handles, loc="lower center", ncol=2,
-               fontsize=9, bbox_to_anchor=(0.5, 0.02), frameon=True)
+               fontsize=8, bbox_to_anchor=(0.5, 0.02),
+               frameon=True, framealpha=0.9,
+               markerscale=0.8)
     fig.suptitle(
         "Figure 6 — Calibration Stress Test Suite  "
         "(PCA projection, severe severity, seed=42)",
