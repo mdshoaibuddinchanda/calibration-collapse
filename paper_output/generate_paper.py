@@ -307,7 +307,9 @@ def _reliability_bands(ax, ds, class_key, methods_info):
                         np.clip(av_a-sv_a,0,1),
                         np.clip(av_a+sv_a,0,1),
                         alpha=0.15, color=color)
-    ax.set_xlim(0,1); ax.set_ylim(0,1)
+    # FIX: add padding so the y=1.0 line is not clipped at the top edge
+    ax.set_xlim(-0.02, 1.02)
+    ax.set_ylim(-0.04, 1.08)
     ax.grid(alpha=0.3)
 
 def make_fig2():
@@ -356,8 +358,31 @@ def make_fig3(table):
     ]
     datasets_plot = ["pima", "phoneme", "credit_card"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 7))
-    fig.subplots_adjust(wspace=0.35, top=0.82, bottom=0.18)
+    fig, axes = plt.subplots(1, 3, figsize=(20, 8))
+    fig.subplots_adjust(wspace=0.38, top=0.80, bottom=0.22)
+
+    # Small jitter offsets so overlapping points separate visually
+    jitter = {
+        "logistic_regression+none+none":                 ( 0.000,  0.000),
+        "logistic_regression+smote+none":                ( 0.008,  0.000),
+        "logistic_regression+class_weight+none":         (-0.008,  0.000),
+        "logistic_regression+smote+temperature_scaling": ( 0.000,  0.008),
+        "logistic_regression+smote+per_class_adaptive":  ( 0.000, -0.008),
+        "random_forest+none+none":                       ( 0.012,  0.000),
+        "random_forest+smote+none":                      (-0.012,  0.000),
+        "random_forest+smote+per_class_adaptive":        ( 0.000,  0.012),
+    }
+    # Short labels for point annotations (avoid long text on plot)
+    short_lbl = {
+        "logistic_regression+none+none":                 "LR·∅",
+        "logistic_regression+smote+none":                "LR·S",
+        "logistic_regression+class_weight+none":         "LR·CW",
+        "logistic_regression+smote+temperature_scaling": "LR·S+TS",
+        "logistic_regression+smote+per_class_adaptive":  "LR·S+PCDM",
+        "random_forest+none+none":                       "RF·∅",
+        "random_forest+smote+none":                      "RF·S",
+        "random_forest+smote+per_class_adaptive":        "RF·S+PCDM",
+    }
 
     for ax, ds in zip(axes, datasets_plot):
         for m, lbl, color, mk in methods_plot:
@@ -365,25 +390,35 @@ def make_fig3(table):
             em, es = gm(table, m, ds, "ece_minority")
             if np.isnan(rm) or np.isnan(em):
                 continue
-            ax.errorbar(rm, em, xerr=rs, yerr=es,
-                        fmt=mk, color=color, ms=10,
-                        capsize=5, elinewidth=1.8,
-                        label=lbl, zorder=5)
+            jx, jy = jitter.get(m, (0, 0))
+            ax.errorbar(rm + jx, em + jy, xerr=rs, yerr=es,
+                        fmt=mk, color=color, ms=11,
+                        capsize=4, elinewidth=1.5,
+                        label=lbl, zorder=5, alpha=0.9)
+            # Small label next to each point
+            ax.annotate(short_lbl.get(m, ""),
+                        (rm + jx, em + jy),
+                        textcoords="offset points",
+                        xytext=(7, 4),
+                        fontsize=7.5, color=color,
+                        fontweight="bold")
 
         ax.set_title(DS_LABEL[ds], fontsize=15, fontweight="bold")
         ax.set_xlabel("Minority Recall  (↑ better)", fontsize=13)
         ax.set_ylabel("ECE_minority  (↓ better)" if ax is axes[0] else "", fontsize=13)
-        ax.set_xlim(-0.02, 1.05)
-        ax.set_ylim(-0.01, None)
+        ax.set_xlim(-0.05, 1.12)
+        ax.set_ylim(-0.02, None)
         ax.grid(alpha=0.3)
-        ax.annotate("Ideal\nregion", xy=(0.88, 0.015),
+        # Ideal region — bottom-right corner, small and unobtrusive
+        ax.annotate("★ Ideal", xy=(0.92, 0.01),
                     fontsize=9, color="#27AE60", ha="center",
-                    bbox=dict(boxstyle="round,pad=0.3",
-                              facecolor="#EAFAF1", alpha=0.7))
+                    bbox=dict(boxstyle="round,pad=0.2",
+                              facecolor="#EAFAF1", alpha=0.8,
+                              edgecolor="#27AE60", linewidth=0.8))
 
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=4,
-               fontsize=10, bbox_to_anchor=(0.5, -0.08),
+               fontsize=10, bbox_to_anchor=(0.5, -0.06),
                frameon=True, title="Method", title_fontsize=11)
     fig.suptitle(
         "Figure 3 — Calibration-Recall Frontier\n"
@@ -425,10 +460,14 @@ def make_fig4():
 
         ax.plot(valid_x, valid_y, "o-", color=color,
                 lw=2.4, ms=9, label=label)
-        for xp, yp in zip(valid_x, valid_y):
+        # FIX: alternate up/down offsets to avoid overlap between mechanisms
+        for i, (xp, yp) in enumerate(zip(valid_x, valid_y)):
+            offset_y = 14 if i % 2 == 0 else -20
+            va = "bottom" if offset_y > 0 else "top"
             ax.annotate(f"{yp:.3f}", (xp, yp),
-                        textcoords="offset points", xytext=(0, 12),
-                        ha="center", fontsize=10, color=color, fontweight="bold")
+                        textcoords="offset points", xytext=(0, offset_y),
+                        ha="center", fontsize=9.5, color=color,
+                        fontweight="bold", va=va)
 
     ax.set_xticks(x_pos)
     ax.set_xticklabels(["Mild", "Moderate", "Severe"], fontsize=13)
@@ -439,9 +478,14 @@ def make_fig4():
         "(LR + no resampling, seed=42)",
         fontsize=15, fontweight="bold",
     )
-    ax.legend(fontsize=12, loc="upper left")
+    # FIX: legend outside plot area (right side) so it never covers lines
+    ax.legend(fontsize=11, loc="upper left",
+              bbox_to_anchor=(1.02, 1.0), borderaxespad=0,
+              frameon=True, framealpha=0.9)
     ax.grid(alpha=0.3)
     ax.set_ylim(0, None)
+    # Extra right margin for the legend
+    fig.subplots_adjust(right=0.75)
     save(fig, "fig4_severity_sweep")
 
 
@@ -480,10 +524,14 @@ def make_fig5():
         zv, ev = zip(*valid)
         ax.plot(zv, ev, marker=mk, color=color,
                 lw=2.4, ms=9, label=label)
-        for zp, ep in zip(zv, ev):
+        # FIX: alternate label offsets up/down to avoid overlap with title
+        for i, (zp, ep) in enumerate(zip(zv, ev)):
+            offset_y = 14 if i % 2 == 0 else -20
+            va = "bottom" if offset_y > 0 else "top"
             ax.annotate(f"{ep:.3f}", (zp, ep),
-                        textcoords="offset points", xytext=(0, 12),
-                        ha="center", fontsize=10, color=color, fontweight="bold")
+                        textcoords="offset points", xytext=(0, offset_y),
+                        ha="center", fontsize=9.5, color=color,
+                        fontweight="bold", va=va)
 
     ax.set_xticks(zones)
     ax.set_xticklabels([str(z) for z in zones], fontsize=13)
@@ -494,16 +542,28 @@ def make_fig5():
         "Where does calibration instability concentrate?",
         fontsize=15, fontweight="bold",
     )
-    ax.legend(fontsize=12, loc="upper right")
+    # FIX: legend outside plot area so it doesn't cover lines
+    ax.legend(fontsize=11, loc="upper left",
+              bbox_to_anchor=(1.02, 1.0), borderaxespad=0,
+              frameon=True, framealpha=0.9)
     ax.grid(alpha=0.3)
     ax.set_ylim(0, None)
+    # Extra right margin for the legend
+    fig.subplots_adjust(right=0.75)
 
-    # Shade instability region
+    # FIX: shade instability region and place annotation at the BOTTOM
+    # so it never overlaps the data lines or value labels
     ax.axvspan(0.25, 0.55, alpha=0.07, color="#E74C3C")
-    ax.text(0.4, ax.get_ylim()[1] * 0.92,
-            "High-instability\nregion",
-            fontsize=10, color="#C0392B", ha="center",
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="#FADBD8", alpha=0.6))
+    # Place annotation near the x-axis, not near the top
+    ax.annotate(
+        "High-instability region",
+        xy=(0.4, 0.0),
+        xytext=(0.4, -0.045),
+        textcoords="data",
+        fontsize=9, color="#C0392B", ha="center", va="top",
+        bbox=dict(boxstyle="round,pad=0.25", facecolor="#FADBD8",
+                  alpha=0.8, edgecolor="#C0392B", linewidth=0.8),
+    )
 
     save(fig, "fig5_confidence_zone")
 
