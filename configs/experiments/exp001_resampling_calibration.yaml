@@ -1,0 +1,53 @@
+# ============================================================================
+# Phase 1 — Failure Discovery
+# Goal: Prove calibration collapse exists on real datasets.
+#       Establish the ECE_global vs ECE_minority gap.
+#       Establish the calibration-recall tradeoff.
+#
+# Scope: LR + RF only (fast, interpretable baselines)
+#        All resamplers × all calibrators
+#        3 real datasets
+#
+# Runs: 3 datasets × 2 models × 5 resamplers × 4 calibrators = 120 runs
+# ============================================================================
+
+defaults:
+  - base
+
+experiment_id: exp001
+phase: 1
+description: >
+  Phase 1 — Failure Discovery.
+  Prove calibration collapse exists on real datasets using interpretable
+  baseline models. Establish ECE_global vs ECE_minority gap and the
+  calibration-recall tradeoff.
+
+datasets: [pima, phoneme, credit_card]
+
+models:
+  - logistic_regression
+  - random_forest
+
+resamplers:
+  - none
+  - smote
+  - adasyn
+  - borderline_smote
+  - class_weight
+
+calibrators:
+  - none
+  - temperature_scaling
+  - isotonic
+  - platt
+
+metrics:
+  calibration: [ece_global, ece_minority, ece_majority, brier_score, brier_minority, ace_global]
+  classification: [f1_minority, f1_macro, auc_roc, precision_minority, recall_minority]
+
+visualizations: [reliability_diagram, confidence_histogram, frontier_plot]
+
+# Ablations run separately via scripts/run_ablation.py
+ablations:
+  smote_ratios: [0.5, 1.0, 2.0]
+  calibration_bins: [10, 15, 20]

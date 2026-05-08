@@ -1,0 +1,73 @@
+# ============================================================================
+# Phase 3 — Mechanism Isolation via Controlled Stress Benchmarks
+# Goal: Isolate each calibration failure mechanism using the Calibration
+#       Stress Test Suite. Validate that findings from Phase 1-2 generalize
+#       to controlled conditions. Produce calibration degradation curves.
+#
+# Structure:
+#   3a — Severity scaling: does ECE_minority scale with severity level?
+#   3b — Confidence zone sweep: where does calibration break down?
+#   3c — Cross-mechanism: do mechanisms interact?
+#
+# Scope: Best model from Phase 1 (LR or RF)
+#        Best resampler from Phase 1
+#        Best calibrator from Phase 2 (PCDM vs global TS)
+#        All synthetic benchmark datasets
+#
+# Runs: ~18 severity + 5 zone datasets × 2 models × 2 resamplers × 2 calibrators = 184 runs
+#       (much smaller per-dataset, but covers all mechanisms)
+# ============================================================================
+
+defaults:
+  - base
+
+experiment_id: exp004
+phase: 3
+description: >
+  Phase 3 — Mechanism Isolation via Calibration Stress Test Suite.
+  Uses controlled synthetic benchmarks to isolate each failure mechanism.
+  Produces calibration degradation curves across severity levels and
+  confidence zones.
+
+# ── 3a: Severity scaling ────────────────────────────────────────────────────
+severity_datasets:
+  extreme_imbalance:   [extreme_imbalance_mild, extreme_imbalance_moderate, extreme_imbalance_severe]
+  noisy_minority:      [noisy_minority_mild, noisy_minority_moderate, noisy_minority_severe]
+  boundary_overlap:    [boundary_overlap_mild, boundary_overlap_moderate, boundary_overlap_severe]
+  confidence_collapse: [confidence_collapse_mild, confidence_collapse_moderate, confidence_collapse_severe]
+  feature_corruption:  [feature_corruption_mild, feature_corruption_moderate, feature_corruption_severe]
+  distribution_shift:  [distribution_shift_mild, distribution_shift_moderate, distribution_shift_severe]
+
+# ── 3b: Confidence zone sweep ───────────────────────────────────────────────
+zone_datasets:
+  - confidence_zone_0p1
+  - confidence_zone_0p3
+  - confidence_zone_0p5
+  - confidence_zone_0p7
+  - confidence_zone_0p9
+
+# ── Models / resamplers / calibrators (best from Phase 1-2) ─────────────────
+models:
+  - logistic_regression
+  - random_forest
+
+resamplers:
+  - none
+  - smote
+
+calibrators:
+  - none
+  - temperature_scaling
+  - per_class_adaptive
+
+metrics:
+  calibration: [ece_global, ece_minority, ece_majority, brier_score, brier_minority]
+  classification: [f1_minority, f1_macro, auc_roc, recall_minority]
+
+visualizations: [reliability_diagram, frontier_plot]
+
+# Analysis outputs
+analysis:
+  severity_degradation_curve: true    # ECE_minority vs severity level
+  zone_calibration_profile: true      # ECE_minority vs confidence zone
+  mechanism_comparison_table: true    # cross-mechanism summary

@@ -1,0 +1,8 @@
+name: logistic_regression
+class: src.models.logistic.LogisticClassifier
+params:
+  C: 1.0
+  max_iter: 1000
+  solver: lbfgs
+  class_weight: null
+  random_state: null   # set from global seed at runtime

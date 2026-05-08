@@ -1,0 +1,49 @@
+# ============================================================================
+# Phase 2 — Mechanism Validation
+# Goal: Validate the Per-Class Confidence Drift Monitor (PCDM).
+#       Show per-class temperature scaling reduces ECE_minority vs global TS.
+#       Use best-performing methods from Phase 1 only.
+#
+# Scope: Best 2 models from Phase 1 + MLP (GPU)
+#        Best 2 resamplers from Phase 1 + none
+#        All calibrators including PCDM
+#        3 real datasets
+#
+# Runs: 3 datasets × 3 models × 3 resamplers × 5 calibrators = 135 runs
+# ============================================================================
+
+defaults:
+  - base
+
+experiment_id: exp002
+phase: 2
+description: >
+  Phase 2 — Mechanism Validation.
+  Validate the Per-Class Confidence Drift Monitor (PCDM) against global
+  temperature scaling. Uses best-performing methods from Phase 1.
+  Primary question: does per-class calibration reduce ECE_minority?
+
+datasets: [pima, phoneme, credit_card]
+
+models:
+  - logistic_regression   # best baseline from Phase 1
+  - random_forest         # best ensemble from Phase 1
+  - mlp                   # GPU-accelerated, focal loss
+
+resamplers:
+  - none
+  - smote                 # best oversampler from Phase 1
+  - class_weight          # best weighting from Phase 1
+
+calibrators:
+  - none
+  - temperature_scaling   # global baseline
+  - isotonic
+  - platt
+  - per_class_adaptive    # PCDM — the novel contribution
+
+metrics:
+  calibration: [ece_global, ece_minority, ece_majority, brier_score, brier_minority, ace_global]
+  classification: [f1_minority, f1_macro, auc_roc, precision_minority, recall_minority]
+
+visualizations: [reliability_diagram, confidence_histogram, frontier_plot]

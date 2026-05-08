@@ -1,0 +1,10 @@
+name: pima
+path: datasets/raw/pima.csv
+target_column: Outcome
+positive_class: 1
+feature_columns: null
+imbalance_ratio: null
+encoding: utf-8
+separator: ","
+missing_value_strategy: median
+expected_imbalance_range: [1, 10]

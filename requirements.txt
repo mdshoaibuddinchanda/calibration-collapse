@@ -1,0 +1,19 @@
+# Calibration Collapse Under Class Imbalance — Dependencies
+# Tested on Python 3.12, Windows 11, CUDA 12.4 (RTX 3050)
+# Install: pip install -r requirements.txt
+#
+# GPU note: torch is listed without CUDA suffix for cross-platform compatibility.
+# For CUDA support, install manually:
+#   pip install torch==2.6.0+cu124 --index-url https://download.pytorch.org/whl/cu124
+
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.4.2
+imbalanced-learn==0.14.1
+matplotlib==3.8.4
+scipy==1.13.0
+PyYAML==6.0.1
+omegaconf==2.3.0
+joblib==1.4.0
+torch>=2.0.0
+tqdm==4.67.3

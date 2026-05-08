@@ -1,0 +1,10 @@
+name: dataset_name
+path: datasets/raw/dataset_name.csv
+target_column: label
+positive_class: 1
+feature_columns: null       # null = all except target
+imbalance_ratio: null       # auto-detected if null
+encoding: utf-8
+separator: ","
+missing_value_strategy: median   # or drop, mean, mode
+expected_imbalance_range: [5, 200]  # [min_ratio, max_ratio]

@@ -1,0 +1,10 @@
+name: phoneme
+path: datasets/raw/phoneme.csv
+target_column: Class
+positive_class: 1
+feature_columns: null
+imbalance_ratio: null
+encoding: utf-8
+separator: ","
+missing_value_strategy: median
+expected_imbalance_range: [2, 20]

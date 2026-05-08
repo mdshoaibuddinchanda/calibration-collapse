@@ -1,0 +1,8 @@
+name: gradient_boosting
+class: src.models.gradient_boosting.GradientBoostingClassifier_
+params:
+  n_estimators: 200
+  learning_rate: 0.05
+  max_depth: 4
+  subsample: 0.8
+  random_state: null

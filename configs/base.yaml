@@ -1,0 +1,10 @@
+seed: 42
+n_splits: 5            # Stratified k-fold
+test_size: 0.2
+val_size: 0.15         # From training split, for calibration fitting
+calibration_bins: 10
+output_root: outputs/
+artifact_root: artifacts/
+log_level: INFO
+run_seed_validator: false   # Set true before paper submission
+device: cuda               # cuda | cpu — auto-falls back to cpu if unavailable

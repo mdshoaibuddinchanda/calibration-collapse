@@ -1,0 +1,12 @@
+name: confidence_collapse_severe
+path: datasets/synthetic/confidence_collapse_severe_n5000_seed42.csv
+target_column: label
+positive_class: 1
+feature_columns: null
+imbalance_ratio: null
+encoding: utf-8
+separator: ','
+missing_value_strategy: median
+expected_imbalance_range:
+- 1.0
+- 200.0

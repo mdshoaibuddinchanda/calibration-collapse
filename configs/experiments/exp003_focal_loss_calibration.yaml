@@ -1,0 +1,45 @@
+# ============================================================================
+# Phase 2b — Focal Loss Mechanism
+# Goal: Test whether focal loss (loss-level imbalance handling) interacts
+#       with post-hoc calibration differently than resampling.
+#       Measure Catastrophic Minority Forgetting via drift_score.
+#
+# Scope: MLP only (focal loss requires gradient access)
+#        gamma sweep: 0 (CE), 0.5, 1.0, 2.0, 5.0
+#        Best calibrators from Phase 2
+#        3 real datasets
+#
+# Runs: 3 datasets × 5 gamma values × 3 calibrators = 45 runs
+# ============================================================================
+
+defaults:
+  - base
+
+experiment_id: exp003
+phase: 2
+description: >
+  Phase 2b — Focal Loss and Catastrophic Minority Forgetting.
+  Tests whether focal loss interacts with post-hoc calibration differently
+  than resampling. Measures calibration drift across training epochs.
+
+datasets: [pima, phoneme, credit_card]
+
+models: [mlp]
+
+resamplers: [none]   # focal loss handles imbalance at loss level
+
+focal_loss:
+  enabled: true
+  gamma_values: [0.0, 0.5, 1.0, 2.0, 5.0]   # 0.0 = standard cross-entropy
+
+calibrators:
+  - none
+  - temperature_scaling
+  - per_class_adaptive
+
+metrics:
+  calibration: [ece_global, ece_minority, ece_majority, brier_score, brier_minority]
+  classification: [f1_minority, f1_macro, auc_roc, recall_minority]
+  drift: [drift_score_minority, drift_score_global, catastrophic_forgetting_detected]
+
+visualizations: [reliability_diagram, confidence_histogram]

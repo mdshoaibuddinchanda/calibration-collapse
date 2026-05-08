@@ -1,0 +1,146 @@
+# Calibration Stress Test Suite — Dataset Registry
+#
+# These are scientific instruments for mechanism isolation, not data augmentation.
+# Each entry maps a logical name to its generated CSV.
+# Severity levels: mild / moderate / severe
+# Confidence zones: 0.1 / 0.3 / 0.5 / 0.7 / 0.9
+
+# ── Extreme Imbalance (IR sensitivity) ──────────────────────────────────────
+extreme_imbalance_mild:
+  path: datasets/synthetic/extreme_imbalance_mild_n5000_seed42.csv
+  imbalance_ratio: 10.0
+  severity: mild
+  mechanism: ir_sensitivity
+
+extreme_imbalance_moderate:
+  path: datasets/synthetic/extreme_imbalance_moderate_n5000_seed42.csv
+  imbalance_ratio: 50.0
+  severity: moderate
+  mechanism: ir_sensitivity
+
+extreme_imbalance_severe:
+  path: datasets/synthetic/extreme_imbalance_severe_n5000_seed42.csv
+  imbalance_ratio: 100.0
+  severity: severe
+  mechanism: ir_sensitivity
+
+# ── Noisy Minority (label corruption) ───────────────────────────────────────
+noisy_minority_mild:
+  path: datasets/synthetic/noisy_minority_mild_n5000_seed42.csv
+  noise_rate: 0.05
+  severity: mild
+  mechanism: label_corruption
+
+noisy_minority_moderate:
+  path: datasets/synthetic/noisy_minority_moderate_n5000_seed42.csv
+  noise_rate: 0.15
+  severity: moderate
+  mechanism: label_corruption
+
+noisy_minority_severe:
+  path: datasets/synthetic/noisy_minority_severe_n5000_seed42.csv
+  noise_rate: 0.30
+  severity: severe
+  mechanism: label_corruption
+
+# ── Boundary Overlap (decision boundary uncertainty) ────────────────────────
+boundary_overlap_mild:
+  path: datasets/synthetic/boundary_overlap_mild_n5000_seed42.csv
+  overlap_sigma: 2.0
+  severity: mild
+  mechanism: boundary_uncertainty
+
+boundary_overlap_moderate:
+  path: datasets/synthetic/boundary_overlap_moderate_n5000_seed42.csv
+  overlap_sigma: 1.5
+  severity: moderate
+  mechanism: boundary_uncertainty
+
+boundary_overlap_severe:
+  path: datasets/synthetic/boundary_overlap_severe_n5000_seed42.csv
+  overlap_sigma: 0.8
+  severity: severe
+  mechanism: boundary_uncertainty
+
+# ── Confidence Collapse (core hypothesis) ───────────────────────────────────
+confidence_collapse_mild:
+  path: datasets/synthetic/confidence_collapse_mild_n5000_seed42.csv
+  collapse_region: 0.45
+  severity: mild
+  mechanism: confidence_collapse
+
+confidence_collapse_moderate:
+  path: datasets/synthetic/confidence_collapse_moderate_n5000_seed42.csv
+  collapse_region: 0.30
+  severity: moderate
+  mechanism: confidence_collapse
+
+confidence_collapse_severe:
+  path: datasets/synthetic/confidence_collapse_severe_n5000_seed42.csv
+  collapse_region: 0.15
+  severity: severe
+  mechanism: confidence_collapse
+
+# ── Feature Corruption (feature instability) ────────────────────────────────
+feature_corruption_mild:
+  path: datasets/synthetic/feature_corruption_mild_n5000_seed42.csv
+  corruption_rate: 0.10
+  severity: mild
+  mechanism: feature_instability
+
+feature_corruption_moderate:
+  path: datasets/synthetic/feature_corruption_moderate_n5000_seed42.csv
+  corruption_rate: 0.25
+  severity: moderate
+  mechanism: feature_instability
+
+feature_corruption_severe:
+  path: datasets/synthetic/feature_corruption_severe_n5000_seed42.csv
+  corruption_rate: 0.50
+  severity: severe
+  mechanism: feature_instability
+
+# ── Distribution Shift (covariate shift) ────────────────────────────────────
+distribution_shift_mild:
+  path: datasets/synthetic/distribution_shift_mild_n5000_seed42.csv
+  shift_magnitude: 0.5
+  severity: mild
+  mechanism: covariate_shift
+
+distribution_shift_moderate:
+  path: datasets/synthetic/distribution_shift_moderate_n5000_seed42.csv
+  shift_magnitude: 1.5
+  severity: moderate
+  mechanism: covariate_shift
+
+distribution_shift_severe:
+  path: datasets/synthetic/distribution_shift_severe_n5000_seed42.csv
+  shift_magnitude: 3.0
+  severity: severe
+  mechanism: covariate_shift
+
+# ── Confidence Zone Sweep (calibration degradation curve) ───────────────────
+confidence_zone_0p1:
+  path: datasets/synthetic/confidence_zone_zone0p10_n5000_seed42.csv
+  confidence_zone: 0.1
+  mechanism: zone_collapse
+
+confidence_zone_0p3:
+  path: datasets/synthetic/confidence_zone_zone0p30_n5000_seed42.csv
+  confidence_zone: 0.3
+  mechanism: zone_collapse
+
+confidence_zone_0p5:
+  path: datasets/synthetic/confidence_zone_zone0p50_n5000_seed42.csv
+  confidence_zone: 0.5
+  mechanism: zone_collapse
+
+confidence_zone_0p7:
+  path: datasets/synthetic/confidence_zone_zone0p70_n5000_seed42.csv
+  confidence_zone: 0.7
+  mechanism: zone_collapse
+
+confidence_zone_0p9:
+  path: datasets/synthetic/confidence_zone_zone0p90_n5000_seed42.csv
+  confidence_zone: 0.9
+  mechanism: zone_collapse
