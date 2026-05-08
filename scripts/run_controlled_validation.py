@@ -302,6 +302,14 @@ def main() -> None:
         help="Quick mode: 3 seeds, LR only, skip RF",
     )
     parser.add_argument(
+        "--prepare-paper-data", action="store_true",
+        help=(
+            "Run supplementary single-seed experiments needed for paper figures "
+            "(severity sweeps + confidence zone sweep). Fast LR+none runs on "
+            "synthetic datasets. Automatically skips already-completed runs."
+        ),
+    )
+    parser.add_argument(
         "--experiment-id", default="controlled_validation",
     )
     parser.add_argument("--log-level", default="WARNING")
@@ -309,6 +317,11 @@ def main() -> None:
 
     setup_logging(args.log_level)
     logger = logging.getLogger(__name__)
+
+    # ── Prepare paper data if requested ─────────────────────────────────────
+    if getattr(args, "prepare_paper_data", False):
+        prepare_paper_data(logger)
+        return
 
     # Quick mode overrides
     if args.quick:

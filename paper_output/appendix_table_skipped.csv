@@ -1,0 +1,4 @@
+Config,Dataset,Model,Current_ratio,Requested_ratio,Reason
+SMOTE ratio=0.5,pima,LR/RF,0.536,0.5,Current ratio >= requested
+SMOTE ratio=2.0,pima,LR/RF,0.536,2.0,Unstable near IR=1.9
+SMOTE ratio=2.0,phoneme,LR/RF,0.416,2.0,Unstable near IR=2.4

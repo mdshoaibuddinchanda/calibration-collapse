@@ -92,6 +92,10 @@ desktop.ini
 htmlcov/
 .tox/
 
+# ── Paper output — script + all generated figures/tables are committed
+# Figures and tables are included so reviewers can see results without running code
+# paper_output/ is fully tracked (nothing excluded)
+
 # ── Temporary and scratch files ───────────────────────────────────────────────
 *.tmp
 *.bak
