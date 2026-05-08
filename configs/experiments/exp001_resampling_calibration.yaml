@@ -6,9 +6,9 @@
 #
 # Scope: LR + RF only (fast, interpretable baselines)
 #        All resamplers × all calibrators
-#        3 real datasets
+#        7 real datasets
 #
-# Runs: 3 datasets × 2 models × 5 resamplers × 4 calibrators = 120 runs
+# Runs: 7 datasets × 2 models × 5 resamplers × 4 calibrators = 280 runs
 # ============================================================================
 
 defaults:
@@ -22,7 +22,15 @@ description: >
   baseline models. Establish ECE_global vs ECE_minority gap and the
   calibration-recall tradeoff.
 
-datasets: [pima, phoneme, default_credit_card_clients]
+datasets:
+  - pima
+  - phoneme
+  - default_credit_card_clients
+  - bank_marketing
+  - dry_bean
+  - give_me_some_credit
+  - mammography
+  - thyroid_disease
 
 models:
   - logistic_regression
@@ -49,5 +57,5 @@ visualizations: [reliability_diagram, confidence_histogram, frontier_plot]
 
 # Ablations run separately via scripts/run_ablation.py
 ablations:
-  smote_ratios: [0.5, 1.0, 2.0]
+  smote_ratios: [0.5, 1.0]   # 2.0 removed: SMOTE sampling_strategy must be in (0, 1]
   calibration_bins: [10, 15, 20]

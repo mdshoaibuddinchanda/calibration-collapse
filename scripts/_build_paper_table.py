@@ -11,7 +11,7 @@ multiseed_dir = ROOT / "outputs" / "multiseed"
 
 DATASETS = [
     "pima", "phoneme", "default_credit_card_clients", "extreme_imbalance_severe",
-    "bank_marketing", "dry_bean", "mammography", "thyroid_disease",
+    "bank_marketing", "dry_bean", "give_me_some_credit", "mammography", "thyroid_disease",
 ]
 KEY_METRICS = ["ece_global", "ece_minority", "recall_minority", "f1_minority", "auc_roc", "brier_minority"]
 

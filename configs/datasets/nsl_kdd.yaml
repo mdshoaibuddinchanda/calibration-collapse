@@ -1,3 +1,10 @@
+# NSL-KDD Network Intrusion Detection
+# NOTE: This dataset requires preprocessing before use.
+# The raw CSV has no header row and uses string labels.
+# After binarization (normal=0, attack=1), IR ≈ 1.2 — nearly balanced.
+# This makes it unsuitable for class imbalance research.
+# Status: EXCLUDED from experiments (IR too low after binarization).
+# If needed, use the multi-class version with specific attack types as minority.
 name: nsl_kdd
 path: datasets/raw/nsl_kdd.csv
 target_column: label
@@ -7,4 +14,4 @@ imbalance_ratio: null
 encoding: utf-8
 separator: ","
 missing_value_strategy: mode
-expected_imbalance_range: [2, 500]
+expected_imbalance_range: [1, 5]

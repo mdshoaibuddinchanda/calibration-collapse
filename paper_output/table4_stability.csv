@@ -1,17 +1,45 @@
 Method,Dataset,Mean,Std,CV,CI_lower,CI_upper,Stable,N_seeds
 LR + None,pima,0.4564,0.0354,0.0777,0.4123,0.5004,True,5
 LR + None,phoneme,0.5329,0.0141,0.0266,0.5153,0.5505,True,5
+LR + None,default_credit_card_clients,0.6692,0.0059,0.0087,0.6619,0.6764,True,5
+LR + None,dry_bean,0.0026,0.0014,0.5266,0.0009,0.0043,False,5
+LR + None,give_me_some_credit,0.5514,0.0104,0.0189,0.5385,0.5643,True,5
+LR + None,mammography,0.2736,0.024,0.0878,0.2438,0.3035,True,5
+LR + None,thyroid_disease,0.4679,0.0296,0.0634,0.4311,0.5047,True,5
 LR + SMOTE,pima,0.3447,0.0332,0.0962,0.3035,0.3859,True,5
 LR + SMOTE,phoneme,0.3482,0.0141,0.0405,0.3307,0.3657,True,5
+LR + SMOTE,default_credit_card_clients,0.4269,0.0053,0.0125,0.4202,0.4335,True,5
+LR + SMOTE,dry_bean,0.0004,0.0004,0.9776,-0.0001,0.0008,False,5
+LR + SMOTE,give_me_some_credit,0.3977,0.0053,0.0134,0.3911,0.4043,True,5
+LR + SMOTE,mammography,0.2537,0.0216,0.0851,0.2269,0.2805,True,5
+LR + SMOTE,thyroid_disease,0.1917,0.0381,0.1987,0.1444,0.2389,False,5
 LR + ClassWt,pima,0.3465,0.0316,0.0913,0.3072,0.3857,True,5
 LR + ClassWt,phoneme,0.3484,0.0137,0.0392,0.3315,0.3654,True,5
+LR + ClassWt,default_credit_card_clients,0.4279,0.0047,0.0109,0.4221,0.4337,True,5
+LR + ClassWt,dry_bean,0.0004,0.0005,1.1891,-0.0002,0.001,False,5
+LR + ClassWt,give_me_some_credit,0.3986,0.0053,0.0133,0.392,0.4051,True,5
+LR + ClassWt,mammography,0.2543,0.0223,0.0877,0.2266,0.282,True,5
+LR + ClassWt,thyroid_disease,0.1842,0.0351,0.1908,0.1405,0.2278,False,5
 LR + SMOTE + TS,pima,0.3536,0.0336,0.095,0.3119,0.3954,True,5
 LR + SMOTE + TS,phoneme,0.3581,0.0116,0.0325,0.3437,0.3726,True,5
+LR + SMOTE + TS,default_credit_card_clients,0.4214,0.0056,0.0133,0.4144,0.4283,True,5
+LR + SMOTE + TS,dry_bean,0.0001,0.0003,1.9484,-0.0002,0.0005,False,5
+LR + SMOTE + TS,give_me_some_credit,0.377,0.0066,0.0176,0.3688,0.3852,True,5
+LR + SMOTE + TS,mammography,0.2627,0.0311,0.1185,0.2241,0.3014,True,5
+LR + SMOTE + TS,thyroid_disease,0.2106,0.0291,0.1382,0.1745,0.2467,True,5
 LR + SMOTE + PCDM,pima,0.3379,0.0354,0.1047,0.294,0.3818,True,5
 LR + SMOTE + PCDM,phoneme,0.3243,0.0121,0.0374,0.3093,0.3394,True,5
+LR + SMOTE + PCDM,default_credit_card_clients,0.4495,0.0108,0.0239,0.4362,0.4629,True,5
+LR + SMOTE + PCDM,dry_bean,0.0,0.0,2.137,-0.0,0.0,False,5
+LR + SMOTE + PCDM,give_me_some_credit,0.402,0.0064,0.016,0.3941,0.41,True,5
+LR + SMOTE + PCDM,mammography,0.2485,0.052,0.2092,0.1839,0.313,False,5
+LR + SMOTE + PCDM,thyroid_disease,0.2396,0.0284,0.1184,0.2044,0.2748,True,5
 RF + None,pima,0.455,0.0292,0.0641,0.4188,0.4912,True,5
 RF + None,phoneme,0.3005,0.0081,0.0269,0.2905,0.3106,True,5
+RF + None,default_credit_card_clients,0.6043,0.0094,0.0156,0.5926,0.616,True,5
 RF + SMOTE,pima,0.3896,0.0285,0.0731,0.3543,0.425,True,5
 RF + SMOTE,phoneme,0.2222,0.0053,0.024,0.2156,0.2288,True,5
+RF + SMOTE,default_credit_card_clients,0.5032,0.0072,0.0144,0.4942,0.5122,True,5
 RF + SMOTE + PCDM,pima,0.4866,0.0036,0.0073,0.4821,0.491,True,5
 RF + SMOTE + PCDM,phoneme,0.4532,0.0013,0.0029,0.4516,0.4549,True,5
+RF + SMOTE + PCDM,default_credit_card_clients,0.4998,0.0011,0.0022,0.4984,0.5011,True,5

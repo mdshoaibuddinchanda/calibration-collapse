@@ -7,4 +7,8 @@ imbalance_ratio: null
 encoding: utf-8
 separator: ","
 missing_value_strategy: median
-expected_imbalance_range: [1, 50]
+expected_imbalance_range: [15.0, 40.0]
+# Note: Binarized from 7-class dataset.
+# Minority class = BOMBAY bean variety (n=522, rarest).
+# Majority class = all other varieties combined (n=13089).
+# IR ≈ 25.1

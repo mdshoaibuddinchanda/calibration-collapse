@@ -1,3 +1,9 @@
+# KDD Cup 1999 Network Intrusion Detection
+# NOTE: File not included in this repository (too large for git).
+# Download from: https://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
+# Place as: datasets/raw/kddcup.csv
+# Status: PLACEHOLDER — not used in current experiments.
+# Consider using nsl_kdd.csv instead (cleaner version of the same dataset).
 name: kddcup
 path: datasets/raw/kddcup.csv
 target_column: label

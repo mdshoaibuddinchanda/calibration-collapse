@@ -88,8 +88,10 @@ class PreprocessingPipeline:
             self._numeric_cols = [c for c in self._numeric_cols if c not in self._constant_cols]
 
         # Build numeric pipeline: imputer → scaler
+        # Translate 'mode' → 'most_frequent' for sklearn SimpleImputer compatibility
+        sklearn_strategy = "most_frequent" if self._missing_strategy == "mode" else self._missing_strategy
         self._numeric_pipeline = Pipeline([
-            ("imputer", SimpleImputer(strategy=self._missing_strategy)),
+            ("imputer", SimpleImputer(strategy=sklearn_strategy)),
             ("scaler", RobustScaler()),
         ])
         X_num = X_train[self._numeric_cols].values if self._numeric_cols else np.empty((len(X_train), 0))

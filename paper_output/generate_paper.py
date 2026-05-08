@@ -80,14 +80,24 @@ MARKERS = {
 }
 
 DS_LABEL = {
-    "pima":                     "Pima (IR=1.9)",
-    "phoneme":                  "Phoneme (IR=2.4)",
-    "default_credit_card_clients": "Default Credit Card Clients (IR≈11.6)",
-    "extreme_imbalance_severe": "Extreme Imb. (IR=101)",
+    "pima":                        "Pima\n(IR=1.9)",
+    "phoneme":                     "Phoneme\n(IR=2.4)",
+    "default_credit_card_clients": "Default CC\n(IR=3.5)",
+    "bank_marketing":              "Bank Mktg\n(IR=7.5)",
+    "dry_bean":                    "Dry Bean\n(IR=25.1)",
+    "give_me_some_credit":         "Give Credit\n(IR=2.0)",
+    "mammography":                 "Mammography\n(IR=1.2)",
+    "thyroid_disease":             "Thyroid\n(IR=15.3)",
+    "extreme_imbalance_severe":    "Extreme Imb.\n(IR=101, syn.)",
 }
-LEGACY_DATASET_ALIASES = {
-    "default_credit_card_clients": "credit_card",
-}
+# All 9 real datasets
+ALL_REAL_DS = [
+    "pima", "phoneme", "default_credit_card_clients",
+    "bank_marketing", "dry_bean", "give_me_some_credit",
+    "mammography", "thyroid_disease",
+]
+# 3-panel subset for figures where 9 panels would be too crowded
+MAIN_3_DS = ["pima", "phoneme", "default_credit_card_clients"]
 M_LABEL = {
     "logistic_regression+none+none":                 "LR + None",
     "logistic_regression+smote+none":                "LR + SMOTE",
@@ -108,15 +118,11 @@ def load_table():
     return json.load(open(p)) if p.exists() else {}
 
 def gm(table, method, ds, metric):
-    for key in (ds, LEGACY_DATASET_ALIASES.get(ds)):
-        if not key:
-            continue
-        try:
-            d = table[method][key][metric]
-            return float(d["mean"]), float(d["std"])
-        except (KeyError, TypeError):
-            continue
-    return float("nan"), float("nan")
+    try:
+        d = table[method][ds][metric]
+        return float(d["mean"]), float(d["std"])
+    except (KeyError, TypeError):
+        return float("nan"), float("nan")
 
 def save(fig, stem):
     fig.savefig(OUT / f"{stem}.pdf", format="pdf", bbox_inches="tight")
@@ -125,31 +131,16 @@ def save(fig, stem):
     plt.close(fig)
 
 def load_ece(dataset_name, suffix="logistic_regression_none_none"):
-    candidates = [dataset_name]
-    legacy = LEGACY_DATASET_ALIASES.get(dataset_name)
-    if legacy:
-        candidates.append(legacy)
-    files = []
-    for candidate in candidates:
-        files = sorted(METRICS_CAL.glob(f"*{candidate}*{suffix}*calibration_metrics.json"))
-        if files:
-            break
+    files = sorted(METRICS_CAL.glob(f"*{dataset_name}*{suffix}*calibration_metrics.json"))
     if not files:
         return float("nan")
     return float(json.load(open(files[0])).get("ece_minority", float("nan")))
 
 def load_multiseed(ds, method_key):
-    safe = method_key.replace("+", "_")
-    candidates = [ds]
-    legacy = LEGACY_DATASET_ALIASES.get(ds)
-    if legacy:
-        candidates.append(legacy)
-    for candidate in candidates:
-        fname = f"controlled_validation_{candidate}_{candidate}_{safe}_multiseed.json"
-        p = MULTISEED_DIR / fname
-        if p.exists():
-            return json.load(open(p))
-    return {}
+    safe  = method_key.replace("+", "_")
+    fname = f"controlled_validation_{ds}_{ds}_{safe}_multiseed.json"
+    p = MULTISEED_DIR / fname
+    return json.load(open(p)) if p.exists() else {}
 
 
 # =============================================================================
@@ -168,16 +159,21 @@ def make_tables(table):
         "random_forest+smote+none",
         "random_forest+smote+per_class_adaptive",
     ]
-    datasets_main = ["pima", "phoneme", "default_credit_card_clients"]
+    datasets_main = ALL_REAL_DS
 
-    # Table 1
+    # Table 1 — All 10 datasets (9 real + 1 synthetic)
     pd.DataFrame([
-        ["Pima",               "Real",       768,   8,   1.9,  268,  "Mild imbalance baseline"],
-        ["Phoneme",            "Real",      5404,   5,   2.4, 1586,  "Moderate imbalance"],
-        ["Default Credit Card Clients", "Real", 30000, 23, 11.6, "",  "Real credit dataset"],
-        ["Extreme Imb. (syn.)","Synthetic", 5000,  10, 101.0,   49,  "IR stress (controlled)"],
-        ["Conf. Collapse (syn.)","Synthetic",5000, 12,  20.0,  238,  "Confidence instability"],
-    ], columns=["Dataset","Type","Samples","Features","IR","Minority_n","Role"]
+        ["Pima",                   "Real", "UCI",    768,    8,   1.9,   268, "Mild imbalance baseline"],
+        ["Phoneme",                "Real", "OpenML", 5404,   5,   2.4,  1586, "Moderate imbalance"],
+        ["Default CC Clients",     "Real", "UCI",    30000, 23,   3.5,  6636, "Moderate, financial"],
+        ["Bank Marketing",         "Real", "UCI",    45211, 16,   7.5,  5289, "Moderate, marketing"],
+        ["Dry Bean",               "Real", "UCI",    13611, 16,  25.1,   522, "Moderate-high, binarized"],
+        ["Give Me Some Credit",    "Real", "Kaggle", 30000, 10,   2.0, 10026, "Moderate, financial (subsampled)"],
+        ["Mammography",            "Real", "UCI",      961,  5,   1.2,   445, "Mild, medical"],
+        ["Thyroid Disease",        "Real", "UCI",     3772, 29,  15.3,   231, "Moderate-high, medical"],
+        ["Credit Card (proxy)",    "Real", "Kaggle", 28480, 29, 580.0,    49, "Extreme imbalance"],
+        ["Extreme Imb. (syn.)",    "Synth","—",      5000,  10, 101.0,    49, "IR stress (controlled)"],
+    ], columns=["Dataset","Type","Source","Samples","Features","IR","Minority_n","Role"]
     ).to_csv(OUT / "table1_dataset_summary.csv", index=False)
     print("  Saved: table1_dataset_summary.csv")
 
@@ -193,11 +189,11 @@ def make_tables(table):
     pd.DataFrame(rows).to_csv(OUT / "table2_main_results.csv", index=False)
     print("  Saved: table2_main_results.csv")
 
-    # Table 3 — Tradeoff
+    # Table 3 — Tradeoff (all real datasets)
     rows = []
     for m in methods[:5]:
         row = {"Method": M_LABEL.get(m, m)}
-        for ds in ["pima", "phoneme"]:
+        for ds in ALL_REAL_DS:
             rm, rs = gm(table, m, ds, "recall_minority")
             em, es = gm(table, m, ds, "ece_minority")
             row[f"{ds}_recall"] = f"{rm:.3f}±{rs:.3f}" if not np.isnan(rm) else ""
@@ -206,10 +202,10 @@ def make_tables(table):
     pd.DataFrame(rows).to_csv(OUT / "table3_tradeoff.csv", index=False)
     print("  Saved: table3_tradeoff.csv")
 
-    # Table 4 — Stability
+    # Table 4 — Stability (all real datasets)
     rows = []
     for m in methods:
-        for ds in ["pima", "phoneme"]:
+        for ds in ALL_REAL_DS:
             try:
                 d = table[m][ds]["ece_minority"]
                 rows.append({
@@ -254,12 +250,12 @@ def make_fig1(table):
         ("random_forest+none+none",                      "RF+None",       "#85C1E9"),
         ("random_forest+smote+none",                     "RF+SMOTE",      "#F1948A"),
     ]
-    datasets_plot = ["pima", "phoneme", "default_credit_card_clients"]
+    datasets_plot = ALL_REAL_DS   # all 6 real datasets
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.subplots_adjust(wspace=0.32, top=0.82, bottom=0.30, left=0.07, right=0.97)
+    fig, axes = plt.subplots(2, 3, figsize=(16, 9))
+    fig.subplots_adjust(hspace=0.50, wspace=0.32, top=0.88, bottom=0.22, left=0.07, right=0.97)
 
-    for ax, ds in zip(axes, datasets_plot):
+    for ax, ds in zip(axes.flatten(), datasets_plot):
         x = np.arange(len(methods_plot)) * 1.3   # wider spacing between groups
         w = 0.32
         g_m  = [gm(table, m, ds, "ece_global")[0]   for m, _, _ in methods_plot]
@@ -278,7 +274,7 @@ def make_fig1(table):
         ax.set_xticks(x)
         ax.set_xticklabels([lbl for _, lbl, _ in methods_plot],
                            rotation=20, ha="right", fontsize=8)
-        ax.set_ylabel("ECE  (↓ better)" if ax is axes[0] else "", fontsize=9)
+        ax.set_ylabel("ECE  (↓ better)" if ax is axes.flatten()[0] else "", fontsize=9)
         ax.set_ylim(0, None)
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.2f"))
         ax.grid(axis="y", alpha=0.20)
@@ -409,13 +405,13 @@ def make_fig3(table):
         "random_forest+smote+none":                      (-0.015,  0.000),
         "random_forest+smote+per_class_adaptive":        ( 0.000,  0.015),
     }
-    datasets_plot = ["pima", "phoneme", "default_credit_card_clients"]
+    datasets_plot = ALL_REAL_DS   # all 6 real datasets
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 5.5))
-    fig.subplots_adjust(wspace=0.28, top=0.82, bottom=0.30,
+    fig, axes = plt.subplots(2, 3, figsize=(16, 9))
+    fig.subplots_adjust(hspace=0.50, wspace=0.28, top=0.85, bottom=0.22,
                         left=0.07, right=0.97)
 
-    for ax, ds in zip(axes, datasets_plot):
+    for ax, ds in zip(axes.flatten(), datasets_plot):
         for m, lbl, color, mk, filled in methods_plot:
             rm, rs = gm(table, m, ds, "recall_minority")
             em, es = gm(table, m, ds, "ece_minority")
@@ -428,15 +424,15 @@ def make_fig3(table):
                         ms=6, capsize=2, elinewidth=0.9,
                         label=lbl, zorder=5, alpha=0.95)
 
-        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold")
+        ax.set_title(DS_LABEL.get(ds, ds), fontsize=10, fontweight="bold")
         ax.set_xlabel("Minority Recall  (↑)", fontsize=9)
-        ax.set_ylabel("ECE_minority  (↓)" if ax is axes[0] else "", fontsize=9)
+        ax.set_ylabel("ECE_minority  (↓)" if ax is axes.flatten()[0] else "", fontsize=9)
         ax.set_xlim(-0.05, 1.08)
         ax.set_ylim(-0.02, None)
         ax.grid(alpha=0.18)
 
     # Legend at the bottom center — journal style
-    handles, labels = axes[0].get_legend_handles_labels()
+    handles, labels = axes.flatten()[0].get_legend_handles_labels()
     fig.legend(handles, labels,
                loc="lower center", ncol=4,
                fontsize=8, bbox_to_anchor=(0.5, 0.01),
@@ -643,20 +639,20 @@ def make_appendix_a():
         ("logistic_regression+smote+none",               "LR + SMOTE",       "#C0392B"),
         ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE + PCDM","#D4AC0D"),
     ]
-    datasets_plot = ["pima", "phoneme", "default_credit_card_clients"]
+    datasets_plot = ALL_REAL_DS   # all 6 real datasets
 
-    fig, axes = plt.subplots(1, 3, figsize=(13, 4.5))
-    fig.subplots_adjust(wspace=0.28, top=0.80, bottom=0.14,
+    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+    fig.subplots_adjust(hspace=0.50, wspace=0.28, top=0.85, bottom=0.10,
                         left=0.07, right=0.72)
 
-    for ax, ds in zip(axes, datasets_plot):
+    for ax, ds in zip(axes.flatten(), datasets_plot):
         _draw_reliability(ax, ds, "minority", methods_info)
-        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold")
+        ax.set_title(DS_LABEL.get(ds, ds), fontsize=10, fontweight="bold")
         ax.set_xlabel("Mean predicted confidence", fontsize=9)
-        ax.set_ylabel("Fraction of minority positives" if ax is axes[0] else "", fontsize=9)
+        ax.set_ylabel("Fraction of minority positives" if ax is axes.flatten()[0] else "", fontsize=9)
 
     # Single legend to the right
-    handles, labels = axes[0].get_legend_handles_labels()
+    handles, labels = axes.flatten()[0].get_legend_handles_labels()
     fig.legend(handles, labels,
                loc="center left", bbox_to_anchor=(0.73, 0.50),
                fontsize=9, frameon=True, title="Method", title_fontsize=9)
@@ -679,13 +675,13 @@ def make_appendix_b(table):
         ("logistic_regression+smote+none",               "LR + SMOTE",      "#C0392B"),
         ("logistic_regression+smote+per_class_adaptive", "LR + SMOTE+PCDM", "#D4AC0D"),
     ]
-    datasets_var = ["pima", "phoneme"]
+    datasets_var = ALL_REAL_DS   # all 6 real datasets
 
-    fig, axes = plt.subplots(1, 2, figsize=(9, 4.5))
-    fig.subplots_adjust(wspace=0.28, top=0.82, bottom=0.18,
+    fig, axes = plt.subplots(2, 3, figsize=(14, 8))
+    fig.subplots_adjust(hspace=0.50, wspace=0.28, top=0.85, bottom=0.12,
                         left=0.09, right=0.97)
 
-    for ax, ds in zip(axes, datasets_var):
+    for ax, ds in zip(axes.flatten(), datasets_var):
         x      = np.arange(len(methods_var))
         means  = [gm(table, m, ds, "ece_minority")[0] for m, _, _ in methods_var]
         stds   = [gm(table, m, ds, "ece_minority")[1] for m, _, _ in methods_var]
@@ -699,8 +695,8 @@ def make_appendix_b(table):
 
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=18, ha="right", fontsize=9)
-        ax.set_ylabel("ECE_minority" if ax is axes[0] else "", fontsize=9)
-        ax.set_title(DS_LABEL[ds], fontsize=10, fontweight="bold")
+        ax.set_ylabel("ECE_minority" if ax is axes.flatten()[0] else "", fontsize=9)
+        ax.set_title(DS_LABEL.get(ds, ds), fontsize=10, fontweight="bold")
         ax.set_ylim(0, None)
         ax.grid(axis="y", alpha=0.18)
 

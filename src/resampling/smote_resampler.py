@@ -72,9 +72,16 @@ class SMOTEResampler(BaseResampler):
         n_before = len(X_train)
 
         # Identify actual minority class (smallest count) — do NOT assume it's class 1
+        # Handle both numeric and string class labels
         classes, counts = np.unique(y_train, return_counts=True)
-        minority_class = int(classes[np.argmin(counts)])
-        majority_class = int(classes[np.argmax(counts)])
+        minority_class = classes[np.argmin(counts)]
+        majority_class = classes[np.argmax(counts)]
+        # Convert to int only if the label is numeric
+        try:
+            minority_class = int(minority_class)
+            majority_class = int(majority_class)
+        except (ValueError, TypeError):
+            pass  # keep as string — string labels are valid
         n_minority_before = int((y_train == minority_class).sum())
         n_majority_before = int((y_train == majority_class).sum())
 
